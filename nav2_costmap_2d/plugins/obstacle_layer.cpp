@@ -34,10 +34,10 @@
  *
  * Author: Eitan Marder-Eppstein
  *         David V. Lu!!
+ *         Steve Macenski
  *********************************************************************/
 #include <nav2_costmap_2d/obstacle_layer.h>
 #include <nav2_costmap_2d/costmap_math.h>
-#include <tf2_ros/message_filter.h>
 
 #include <pluginlib/class_list_macros.h>
 #include <sensor_msgs/point_cloud2_iterator.h>
@@ -56,11 +56,16 @@ namespace nav2_costmap_2d
 
 void ObstacleLayer::onInitialize()
 {
-  ros::NodeHandle nh("~/" + name_), g_nh;
+  //TODO STEVE TEST check if this actually works
+  auto nh = rclcpp::Node::make_shared("~/" + name_);
+  auto g_nh = rclcpp::Node::make_shared("nav2_costmap_2d_obstacle");
+
+  auto parameters_client = std::make_shared<rclcpp::SyncParametersClient>(nh);
+
   rolling_window_ = layered_costmap_->isRolling();
 
-  bool track_unknown_space;
-  nh.param("track_unknown_space", track_unknown_space, layered_costmap_->isTrackingUnknown());
+  bool track_unknown_space = parameters_client->get_parameter<bool>("track_unknown_space",
+    layered_costmap_->isTrackingUnknown());
   if (track_unknown_space) {
     default_value_ = NO_INFORMATION;
   } else {
@@ -71,45 +76,49 @@ void ObstacleLayer::onInitialize()
   current_ = true;
 
   global_frame_ = layered_costmap_->getGlobalFrameID();
-  double transform_tolerance;
-  nh.param("transform_tolerance", transform_tolerance, 0.2);
+  double transform_tolerance = parameters_client->get_parameter<double>("transform_tolerance", 0.2);
 
-  std::string topics_string;
   // get the topics that we'll subscribe to from the parameter server
-  nh.param("observation_sources", topics_string, std::string(""));
-  ROS_INFO("    Subscribed to Topics: %s", topics_string.c_str());
+  std::string topics_string = parameters_client->get_parameter<std::string>("observation_sources",
+    std::string(""));
+
+  RCLCPP_INFO(rclcpp::get_logger("nav2_costmap_2d"), "Subscribed to Topics: %s", topics_string.c_str());
 
   // now we need to split the topics based on whitespace which we can use a stringstream for
   std::stringstream ss(topics_string);
 
   std::string source;
   while (ss >> source) {
-    ros::NodeHandle source_node(nh, source);
+    // TODO STEVE TEST
+    auto source_node(nh, source);
+    auto local_parameters_client = std::make_shared<rclcpp::SyncParametersClient>(source_node);
 
     // get the parameters for the specific topic
     double observation_keep_time, expected_update_rate, min_obstacle_height, max_obstacle_height;
     std::string topic, sensor_frame, data_type;
     bool inf_is_valid, clearing, marking;
 
-    source_node.param("topic", topic, source);
-    source_node.param("sensor_frame", sensor_frame, std::string(""));
-    source_node.param("observation_persistence", observation_keep_time, 0.0);
-    source_node.param("expected_update_rate", expected_update_rate, 0.0);
-    source_node.param("data_type", data_type, std::string("PointCloud"));
-    source_node.param("min_obstacle_height", min_obstacle_height, 0.0);
-    source_node.param("max_obstacle_height", max_obstacle_height, 2.0);
-    source_node.param("inf_is_valid", inf_is_valid, false);
-    source_node.param("clearing", clearing, false);
-    source_node.param("marking", marking, true);
+    topic = local_parameters_client->get_parameter<std::string>("topic", source);
+    sensor_frame = local_parameters_client->get_parameter<std::string>("sensor_frame", std::string(""));
+    observation_keep_time = local_parameters_client->get_parameter<double>("observation_persistence", 0.0);
+    expected_update_rate = local_parameters_client->get_parameter<double>("expected_update_rate", 0.0);
+    data_type = local_parameters_client->get_parameter<double>("data_type", std::string("PointCloud"));
+    min_obstacle_height = local_parameters_client->get_parameter<double>("min_obstacle_height", 0.0);
+    max_obstacle_height = local_parameters_client->get_parameter<double>("max_obstacle_height", 0.0);
+    inf_is_valid = local_parameters_client->get_parameter<bool>("inf_is_valid", false);
+    marking = local_parameters_client->get_parameter<bool>("marking", false);
+    clearing = local_parameters_client->get_parameter<bool>("clearing", false);
 
     if (!(data_type == "PointCloud2" || data_type == "PointCloud" || data_type == "LaserScan")) {
-      ROS_FATAL("Only topics that use point clouds or laser scans are currently supported");
+      RCLCPP_FATAL(rclcpp::get_logger("nav2_costmap_2d"),
+        "Only topics that use point clouds or laser scans are currently supported");
       throw std::runtime_error(
           "Only topics that use point clouds or laser scans are currently supported");
     }
 
     std::string raytrace_range_param_name, obstacle_range_param_name;
 
+    // TODO STEVE
     // get the obstacle range for the sensor
     double obstacle_range = 2.5;
     if (source_node.searchParam("obstacle_range", obstacle_range_param_name)) {
@@ -122,9 +131,10 @@ void ObstacleLayer::onInitialize()
       source_node.getParam(raytrace_range_param_name, raytrace_range);
     }
 
-    ROS_DEBUG("Creating an observation buffer for source %s, topic %s, frame %s",
-        source.c_str(), topic.c_str(),
-        sensor_frame.c_str());
+    RCLCPP_DEBUG(rclcpp::get_logger("nav2_costmap_2d"),
+      "Creating an observation buffer for source %s, topic %s, frame %s",
+      source.c_str(), topic.c_str(),
+      sensor_frame.c_str());
 
     // create an observation buffer
     observation_buffers_.push_back(
@@ -144,7 +154,7 @@ void ObstacleLayer::onInitialize()
       clearing_buffers_.push_back(observation_buffers_.back());
     }
 
-    ROS_DEBUG(
+    RCLCPP_DEBUG(rclcpp::get_logger("nav2_costmap_2d"),
         "Created an observation buffer for source %s, topic %s, global frame: %s, "
         "expected update rate: %.2f, observation persistence: %.2f",
         source.c_str(), topic.c_str(),
@@ -152,11 +162,11 @@ void ObstacleLayer::onInitialize()
 
     // create a callback for the topic
     if (data_type == "LaserScan") {
-      std::shared_ptr<message_filters::Subscriber<sensor_msgs::LaserScan>
-      > sub(new message_filters::Subscriber<sensor_msgs::LaserScan>(g_nh, topic, 50));
+      std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::LaserScan>
+      > sub(new message_filters::Subscriber<sensor_msgs::msg::LaserScan>(g_nh, topic, 50));
 
-      std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::LaserScan> > filter(
-          new tf2_ros::MessageFilter<sensor_msgs::LaserScan>(*sub, *tf_, global_frame_, 50, g_nh));
+      std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::LaserScan> > filter(
+          new tf2_ros::MessageFilter<sensor_msgs::msg::LaserScan>(*sub, *tf_, global_frame_, 50, g_nh));
 
       if (inf_is_valid) {
         filter->registerCallback(std::bind(&ObstacleLayer::laserScanValidInfCallback, this, _1,
@@ -171,16 +181,16 @@ void ObstacleLayer::onInitialize()
 
       observation_notifiers_.back()->setTolerance(ros::Duration(0.05));
     } else if (data_type == "PointCloud") {
-      std::shared_ptr<message_filters::Subscriber<sensor_msgs::PointCloud>
-      > sub(new message_filters::Subscriber<sensor_msgs::PointCloud>(g_nh, topic, 50));
+      std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::PointCloud>
+      > sub(new message_filters::Subscriber<sensor_msgs::msg::PointCloud>(g_nh, topic, 50));
 
       if (inf_is_valid) {
-        ROS_WARN(
+        RCLCPP_WARN(rclcpp::get_logger("nav2_costmap_2d"),
             "obstacle_layer: inf_is_valid option is not applicable to PointCloud observations.");
       }
 
-      std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::PointCloud>
-      > filter(new tf2_ros::MessageFilter<sensor_msgs::PointCloud>(*sub, *tf_, global_frame_, 50,
+      std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud>
+      > filter(new tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud>(*sub, *tf_, global_frame_, 50,
             g_nh));
       filter->registerCallback(
           std::bind(&ObstacleLayer::pointCloudCallback, this, _1, observation_buffers_.back()));
@@ -188,16 +198,16 @@ void ObstacleLayer::onInitialize()
       observation_subscribers_.push_back(sub);
       observation_notifiers_.push_back(filter);
     } else {
-      std::shared_ptr<message_filters::Subscriber<sensor_msgs::PointCloud2>
-      > sub(new message_filters::Subscriber<sensor_msgs::PointCloud2>(g_nh, topic, 50));
+      std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::PointCloud2>
+      > sub(new message_filters::Subscriber<sensor_msgs::msg::PointCloud2>(g_nh, topic, 50));
 
       if (inf_is_valid) {
-        ROS_WARN(
+        RCLCPP_WARN(rclcpp::get_logger("nav2_costmap_2d"),
             "obstacle_layer: inf_is_valid option is not applicable to PointCloud observations.");
       }
 
-      std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::PointCloud2>
-      > filter(new tf2_ros::MessageFilter<sensor_msgs::PointCloud2>(*sub, *tf_, global_frame_, 50,
+      std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>
+      > filter(new tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>(*sub, *tf_, global_frame_, 50,
             g_nh));
       filter->registerCallback(
           std::bind(&ObstacleLayer::pointCloud2Callback, this, _1, observation_buffers_.back()));
@@ -214,46 +224,49 @@ void ObstacleLayer::onInitialize()
     }
   }
 
-  dsrv_ = NULL;
-  setupDynamicReconfigure(nh);
+  //dsrv_ = NULL;  // TODO(SteveMacenski): Replace dynamic_reconfigure functionality
+  //setupDynamicReconfigure(nh);
 }
 
-void ObstacleLayer::setupDynamicReconfigure(ros::NodeHandle & nh)
-{
-  dsrv_ = new dynamic_reconfigure::Server<nav2_costmap_2d::ObstaclePluginConfig>(nh);
-  dynamic_reconfigure::Server<nav2_costmap_2d::ObstaclePluginConfig>::CallbackType cb = std::bind(
-      &ObstacleLayer::reconfigureCB, this, _1, _2);
-  dsrv_->setCallback(cb);
-}
+// TODO(SteveMacenski): Replace dynamic_reconfigure functionality
+// void ObstacleLayer::setupDynamicReconfigure(ros::NodeHandle & nh)
+// {
+//   dsrv_ = new dynamic_reconfigure::Server<nav2_costmap_2d::ObstaclePluginConfig>(nh);
+//   dynamic_reconfigure::Server<nav2_costmap_2d::ObstaclePluginConfig>::CallbackType cb = std::bind(
+//       &ObstacleLayer::reconfigureCB, this, _1, _2);
+//   dsrv_->setCallback(cb);
+// }
 
 ObstacleLayer::~ObstacleLayer()
 {
-  if (dsrv_) {
-    delete dsrv_;
-  }
-}
-void ObstacleLayer::reconfigureCB(nav2_costmap_2d::ObstaclePluginConfig & config, uint32_t level)
-{
-  enabled_ = config.enabled;
-  footprint_clearing_enabled_ = config.footprint_clearing_enabled;
-  max_obstacle_height_ = config.max_obstacle_height;
-  combination_method_ = config.combination_method;
+  // if (dsrv_) { // TODO(SteveMacenski): Replace dynamic_reconfigure functionality
+  //   delete dsrv_;
+  // }
 }
 
-void ObstacleLayer::laserScanCallback(const sensor_msgs::LaserScanConstPtr & message,
+// void ObstacleLayer::reconfigureCB(nav2_costmap_2d::ObstaclePluginConfig & config, uint32_t level)
+// {
+//   enabled_ = config.enabled;
+//   footprint_clearing_enabled_ = config.footprint_clearing_enabled;
+//   max_obstacle_height_ = config.max_obstacle_height;
+//   combination_method_ = config.combination_method;
+// }
+
+void ObstacleLayer::laserScanCallback(const sensor_msgs::msg::LaserScanConstPtr & message,
     const std::shared_ptr<ObservationBuffer> & buffer)
 {
   // project the laser into a point cloud
-  sensor_msgs::PointCloud2 cloud;
+  sensor_msgs::msg::PointCloud2 cloud;
   cloud.header = message->header;
 
   // project the scan into a point cloud
   try {
     projector_.transformLaserScanToPointCloud(message->header.frame_id, *message, cloud, *tf_);
   } catch (tf2::TransformException & ex) {
-    ROS_WARN("High fidelity enabled, but TF returned a transform exception to frame %s: %s",
-        global_frame_.c_str(),
-        ex.what());
+    RCLCPP_WARN(rclcpp::get_logger("nav2_costmap_2d"),
+      "High fidelity enabled, but TF returned a transform exception to frame %s: %s",
+      global_frame_.c_str(),
+      ex.what());
     projector_.projectLaser(*message, cloud);
   }
 
@@ -263,12 +276,12 @@ void ObstacleLayer::laserScanCallback(const sensor_msgs::LaserScanConstPtr & mes
   buffer->unlock();
 }
 
-void ObstacleLayer::laserScanValidInfCallback(const sensor_msgs::LaserScanConstPtr & raw_message,
+void ObstacleLayer::laserScanValidInfCallback(const sensor_msgs::msg::LaserScanConstPtr & raw_message,
     const std::shared_ptr<ObservationBuffer> & buffer)
 {
   // Filter positive infinities ("Inf"s) to max_range.
   float epsilon = 0.0001;  // a tenth of a millimeter
-  sensor_msgs::LaserScan message = *raw_message;
+  sensor_msgs::msg::LaserScan message = *raw_message;
   for (size_t i = 0; i < message.ranges.size(); i++) {
     float range = message.ranges[i];
     if (!std::isfinite(range) && range > 0) {
@@ -277,15 +290,16 @@ void ObstacleLayer::laserScanValidInfCallback(const sensor_msgs::LaserScanConstP
   }
 
   // project the laser into a point cloud
-  sensor_msgs::PointCloud2 cloud;
+  sensor_msgs::msg::PointCloud2 cloud;
   cloud.header = message.header;
 
   // project the scan into a point cloud
   try {
     projector_.transformLaserScanToPointCloud(message.header.frame_id, message, cloud, *tf_);
   } catch (tf2::TransformException & ex) {
-    ROS_WARN("High fidelity enabled, but TF returned a transform exception to frame %s: %s",
-        global_frame_.c_str(), ex.what());
+    RCLCPP_WARN(rclcpp::get_logger("nav2_costmap_2d"),
+      "High fidelity enabled, but TF returned a transform exception to frame %s: %s",
+      global_frame_.c_str(), ex.what());
     projector_.projectLaser(message, cloud);
   }
 
@@ -295,13 +309,14 @@ void ObstacleLayer::laserScanValidInfCallback(const sensor_msgs::LaserScanConstP
   buffer->unlock();
 }
 
-void ObstacleLayer::pointCloudCallback(const sensor_msgs::PointCloudConstPtr & message,
+void ObstacleLayer::pointCloudCallback(const sensor_msgs::msg::PointCloudConstPtr & message,
     const std::shared_ptr<ObservationBuffer> & buffer)
 {
-  sensor_msgs::PointCloud2 cloud2;
+  sensor_msgs::msg::PointCloud2 cloud2;
 
   if (!sensor_msgs::convertPointCloudToPointCloud2(*message, cloud2)) {
-    ROS_ERROR("Failed to convert a PointCloud to a PointCloud2, dropping message");
+    RCLCPP_ERROR(rclcpp::get_logger("nav2_costmap_2d"),
+      "Failed to convert a PointCloud to a PointCloud2, dropping message");
     return;
   }
 
@@ -311,7 +326,7 @@ void ObstacleLayer::pointCloudCallback(const sensor_msgs::PointCloudConstPtr & m
   buffer->unlock();
 }
 
-void ObstacleLayer::pointCloud2Callback(const sensor_msgs::PointCloud2ConstPtr & message,
+void ObstacleLayer::pointCloud2Callback(const sensor_msgs::msg::PointCloud2ConstPtr & message,
     const std::shared_ptr<ObservationBuffer> & buffer)
 {
   // buffer the point cloud
@@ -354,20 +369,20 @@ void ObstacleLayer::updateBounds(double robot_x, double robot_y, double robot_ya
   {
     const Observation & obs = *it;
 
-    const sensor_msgs::PointCloud2 & cloud = *(obs.cloud_);
+    const sensor_msgs::msg::PointCloud2 & cloud = *(obs.cloud_);
 
     double sq_obstacle_range = obs.obstacle_range_ * obs.obstacle_range_;
 
-    sensor_msgs::PointCloud2ConstIterator<float> iter_x(cloud, "x");
-    sensor_msgs::PointCloud2ConstIterator<float> iter_y(cloud, "y");
-    sensor_msgs::PointCloud2ConstIterator<float> iter_z(cloud, "z");
+    sensor_msgs::msg::PointCloud2ConstIterator<float> iter_x(cloud, "x");
+    sensor_msgs::msg::PointCloud2ConstIterator<float> iter_y(cloud, "y");
+    sensor_msgs::msg::PointCloud2ConstIterator<float> iter_z(cloud, "z");
 
     for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
       double px = *iter_x, py = *iter_y, pz = *iter_z;
 
       // if the obstacle is too high or too far away from the robot we won't add it
       if (pz > max_obstacle_height_) {
-        ROS_DEBUG("The point is too high");
+        RCLCPP_DEBUG(rclcpp::get_logger("nav2_costmap_2d"), "The point is too high");
         continue;
       }
 
@@ -379,14 +394,14 @@ void ObstacleLayer::updateBounds(double robot_x, double robot_y, double robot_ya
 
       // if the point is far enough away... we won't consider it
       if (sq_dist >= sq_obstacle_range) {
-        ROS_DEBUG("The point is too far away");
+        RCLCPP_DEBUG(rclcpp::get_logger("nav2_costmap_2d"), "The point is too far away");
         continue;
       }
 
       // now we need to compute the map coordinates for the observation
       unsigned int mx, my;
       if (!worldToMap(px, py, mx, my)) {
-        ROS_DEBUG("Computing map coords failed");
+        RCLCPP_DEUBG(rclcpp::get_logger("nav2_costmap_2d"), "Computing map coords failed");
         continue;
       }
 
@@ -493,12 +508,12 @@ void ObstacleLayer::raytraceFreespace(const Observation & clearing_observation, 
 {
   double ox = clearing_observation.origin_.x;
   double oy = clearing_observation.origin_.y;
-  const sensor_msgs::PointCloud2 & cloud = *(clearing_observation.cloud_);
+  const sensor_msgs::msg::PointCloud2 & cloud = *(clearing_observation.cloud_);
 
   // get the map coordinates of the origin of the sensor
   unsigned int x0, y0;
   if (!worldToMap(ox, oy, x0, y0)) {
-    ROS_WARN_THROTTLE(
+    RCLCPP_WARN_THROTTLE(rclcpp::get_logger("nav2_costmap_2d"),
         1.0,
         "The origin for the sensor at (%.2f, %.2f) is out of map bounds. So, the costmap cannot raytrace for it.",
         ox, oy);
@@ -514,8 +529,8 @@ void ObstacleLayer::raytraceFreespace(const Observation & clearing_observation, 
   touch(ox, oy, min_x, min_y, max_x, max_y);
 
   // for each point in the cloud, we want to trace a line from the origin and clear obstacles along it
-  sensor_msgs::PointCloud2ConstIterator<float> iter_x(cloud, "x");
-  sensor_msgs::PointCloud2ConstIterator<float> iter_y(cloud, "y");
+  sensor_msgs::msg::PointCloud2ConstIterator<float> iter_x(cloud, "x");
+  sensor_msgs::msg::PointCloud2ConstIterator<float> iter_y(cloud, "y");
 
   for (; iter_x != iter_x.end(); ++iter_x, ++iter_y) {
     double wx = *iter_x;
