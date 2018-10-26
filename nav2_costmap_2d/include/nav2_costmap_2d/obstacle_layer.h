@@ -44,7 +44,7 @@
 #include <nav2_costmap_2d/observation_buffer.h>
 #include <nav2_costmap_2d/footprint.h>
 
-#include <laser_geometry/laser_geometry.h>
+#include "laser_geometry/laser_geometry.hpp"
 #include <tf2_ros/message_filter.h>
 #include <message_filters/subscriber.h>
 

@@ -206,7 +206,7 @@ AmclNode::AmclNode()
   cloud_pub_interval = std::chrono::duration<double>{1.0};
 
   tfb_.reset(new tf2_ros::TransformBroadcaster(parameters_node_));
-  tf_.reset(new tf2_ros::Buffer());
+  tf_.reset(new tf2_ros::Buffer(get_clock()));
   tfl_.reset(new tf2_ros::TransformListener(*tf_));
 
   rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_default;
@@ -619,6 +619,14 @@ void AmclNode::updatePoseFromServer()
 void
 AmclNode::checkLaserReceived()
 {
+  if (last_laser_received_ts_.nanoseconds() == 0) {
+    RCLCPP_WARN(
+      get_logger(), "Laser scan has not been received"
+      " (and thus no pose updates have been published)."
+      " Verify that data is being published on the %s topic.", scan_topic_);
+    return;
+  }
+
   rclcpp::Duration d = this->now() - last_laser_received_ts_;
   if (d.nanoseconds() * 1e-9 > laser_check_interval_.count()) {
     RCLCPP_WARN(

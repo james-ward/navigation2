@@ -41,6 +41,7 @@ include_directories(
   include
   ${ament_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
+  ${laser_geometry_INCLUDE_DIRS}
 )
 
 add_definitions(${EIGEN3_DEFINITIONS})
@@ -77,6 +78,7 @@ set(dependencies
   tf2_geometry_msgs
   tf2_sensor_msgs
   message_filters
+  laser_geometry
   nav2_util
 )
 
@@ -87,7 +89,7 @@ ament_target_dependencies(nav2_costmap_2d
 add_library(layers SHARED
   plugins/inflation_layer.cpp
   plugins/static_layer.cpp
-  #plugins/obstacle_layer.cpp
+  plugins/obstacle_layer.cpp
   src/observation_buffer.cpp
 
   # TODO(bpwilcox): port additional plugin layers

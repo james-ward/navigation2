@@ -39,8 +39,8 @@
 #include <nav2_costmap_2d/obstacle_layer.h>
 #include <nav2_costmap_2d/costmap_math.h>
 
-#include <pluginlib/class_list_macros.h>
-#include <sensor_msgs/point_cloud2_iterator.h>
+#include <pluginlib/class_list_macros.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
 
 PLUGINLIB_EXPORT_CLASS(nav2_costmap_2d::ObstacleLayer, nav2_costmap_2d::Layer)
 
@@ -56,7 +56,7 @@ namespace nav2_costmap_2d
 
 void ObstacleLayer::onInitialize()
 {
-  //TODO STEVE TEST check if this actually works
+  //TODO STEVE TEST check if this actually works as nodehandles
   auto nh = rclcpp::Node::make_shared("~/" + name_);
   auto g_nh = rclcpp::Node::make_shared("nav2_costmap_2d_obstacle");
 
@@ -89,7 +89,7 @@ void ObstacleLayer::onInitialize()
 
   std::string source;
   while (ss >> source) {
-    // TODO STEVE TEST
+    // TODO STEVE TEST this source stuff works
     auto source_node(nh, source);
     auto local_parameters_client = std::make_shared<rclcpp::SyncParametersClient>(source_node);
 
@@ -118,7 +118,7 @@ void ObstacleLayer::onInitialize()
 
     std::string raytrace_range_param_name, obstacle_range_param_name;
 
-    // TODO STEVE
+    // TODO STEVE search and get param
     // get the obstacle range for the sensor
     double obstacle_range = 2.5;
     if (source_node.searchParam("obstacle_range", obstacle_range_param_name)) {
