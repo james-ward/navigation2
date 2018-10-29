@@ -45,8 +45,8 @@
 #include <nav2_costmap_2d/footprint.h>
 
 #include "laser_geometry/laser_geometry.hpp"
-#include <tf2_ros/message_filter.h>
-#include <message_filters/subscriber.h>
+#include <tf2_ros/message_filter.hpp>
+#include <message_filters/subscriber.hpp>
 
 //#include <nav2_costmap_2d/ObstaclePluginConfig.h>
 //#include <dynamic_reconfigure/server.h>

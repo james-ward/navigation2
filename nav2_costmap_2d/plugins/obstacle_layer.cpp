@@ -51,6 +51,14 @@ using nav2_costmap_2d::FREE_SPACE;
 using nav2_costmap_2d::ObservationBuffer;
 using nav2_costmap_2d::Observation;
 
+// TODO message filters
+// TODO PointCloud2ConstPtr
+// geometry_msgs/Point
+// nhs
+// wtf y?   for (; iter_x != iter_x.end(); ++iter_x, ++iter_y) {
+// 
+
+
 namespace nav2_costmap_2d
 {
 
@@ -373,9 +381,9 @@ void ObstacleLayer::updateBounds(double robot_x, double robot_y, double robot_ya
 
     double sq_obstacle_range = obs.obstacle_range_ * obs.obstacle_range_;
 
-    sensor_msgs::msg::PointCloud2ConstIterator<float> iter_x(cloud, "x");
-    sensor_msgs::msg::PointCloud2ConstIterator<float> iter_y(cloud, "y");
-    sensor_msgs::msg::PointCloud2ConstIterator<float> iter_z(cloud, "z");
+    sensor_msgs::PointCloud2ConstIterator<float> iter_x(cloud, "x");
+    sensor_msgs::PointCloud2ConstIterator<float> iter_y(cloud, "y");
+    sensor_msgs::PointCloud2ConstIterator<float> iter_z(cloud, "z");
 
     for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
       double px = *iter_x, py = *iter_y, pz = *iter_z;
@@ -529,8 +537,8 @@ void ObstacleLayer::raytraceFreespace(const Observation & clearing_observation, 
   touch(ox, oy, min_x, min_y, max_x, max_y);
 
   // for each point in the cloud, we want to trace a line from the origin and clear obstacles along it
-  sensor_msgs::msg::PointCloud2ConstIterator<float> iter_x(cloud, "x");
-  sensor_msgs::msg::PointCloud2ConstIterator<float> iter_y(cloud, "y");
+  sensor_msgs::PointCloud2ConstIterator<float> iter_x(cloud, "x");
+  sensor_msgs::PointCloud2ConstIterator<float> iter_y(cloud, "y");
 
   for (; iter_x != iter_x.end(); ++iter_x, ++iter_y) {
     double wx = *iter_x;
