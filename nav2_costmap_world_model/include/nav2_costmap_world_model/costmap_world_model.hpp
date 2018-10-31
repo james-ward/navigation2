@@ -18,11 +18,15 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include "nav2_costmap_2d/inflation_layer.h"
+#include "nav2_costmap_2d/layered_costmap.h"
+#include "nav2_costmap_2d/static_layer.h"
+#include "geometry_msgs/msg/point.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "nav2_util/costmap.hpp"
 #include "nav2_msgs/msg/costmap.hpp"
 #include "nav2_msgs/srv/get_costmap.hpp"
-#include "nav2_tasks/map_service_client.hpp"
+#include "tf2_ros/transform_listener.h"
 
 namespace nav2_costmap_world_model
 {
@@ -33,26 +37,27 @@ public:
   explicit CostmapWorldModel(const std::string & name);
   CostmapWorldModel();
 
+  template<class LayerT>
+  void addLayer(std::string layer_name)
+  {
+    auto layer = std::make_shared<LayerT>();
+    layered_costmap_->addPlugin(layer);
+    layer->initialize(layered_costmap_, layer_name, tf_, node_);
+  }
+
+  void setFootprint(double length, double width);
+
 private:
+  void costmap_callback(
+    const std::shared_ptr<rmw_request_id_t>/*request_header*/,
+    const std::shared_ptr<nav2_msgs::srv::GetCostmap::Request>/*request*/,
+    const std::shared_ptr<nav2_msgs::srv::GetCostmap::Response> response);
+
   // Server for providing a costmap
   rclcpp::Service<nav2_msgs::srv::GetCostmap>::SharedPtr costmapServer_;
-
-  // TODO(orduno): Define a server for scoring trajectories
-  // rclcpp::Service<nav2_msgs::srv::ScoreTrajectory>::SharedPtr scoringServer_;
-
-  // TODO(orduno): Define a client for getting the static map
-  // rclcpp::Client<nav2_msgs::srv::GetMap>::SharedPtr mapClient_;
-
-  // TODO(orduno): Alternatively, obtain from a latched topic
-  // rclcpp::Subscription<nav2_msgs::OccupancyGrid>::SharedPtr mapSub_;
-
-  // TODO(orduno): Define a task for handling trajectory scoring
-  // std::unique_ptr<ScoreTrajectoryClient> scorer;
-
-  // TODO(orduno): std::unique_ptr<LayeredCostmap> layeredCostmap_;
-  std::unique_ptr<nav2_util::Costmap> costmap_;
-
-  nav2_tasks::MapServiceClient map_client_;
+  nav2_costmap_2d::LayeredCostmap * layered_costmap_;
+  tf2_ros::Buffer * tf_;
+  rclcpp::Node::SharedPtr node_;
 };
 
 }  // namespace nav2_costmap_world_model

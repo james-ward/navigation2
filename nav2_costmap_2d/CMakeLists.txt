@@ -28,10 +28,10 @@ find_package(xmlrpcpp REQUIRED)
 find_package(laser_geometry REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(message_filters REQUIRED)
-find_package(nav2_util REQUIRED)
+find_package(nav2_dynamic_params)
+find_package(nav2_util)
 
 # TODO(bpwilcox): port remaining packages
-#find_package(dynamic_reconfigure REQUIRED)
 #find_package(voxel_grid REQUIRED)
 
 remove_definitions(-DDISABLE_LIBUSB-1.0)
@@ -78,7 +78,11 @@ set(dependencies
   tf2_geometry_msgs
   tf2_sensor_msgs
   message_filters
+<<<<<<< HEAD
   laser_geometry
+=======
+  nav2_dynamic_params
+>>>>>>> ae2745f48c15fcd88111cd0a9d6b70a3c8f6b4a3
   nav2_util
 )
 
@@ -89,7 +93,13 @@ ament_target_dependencies(nav2_costmap_2d
 add_library(layers SHARED
   plugins/inflation_layer.cpp
   plugins/static_layer.cpp
+<<<<<<< HEAD
   plugins/obstacle_layer.cpp
+=======
+  
+  #	TODO(bpwilcox): port additional plugin layers
+  #plugins/obstacle_layer.cpp
+>>>>>>> ae2745f48c15fcd88111cd0a9d6b70a3c8f6b4a3
   src/observation_buffer.cpp
 
   # TODO(bpwilcox): port additional plugin layers
@@ -97,16 +107,16 @@ add_library(layers SHARED
 )
 ament_target_dependencies(layers
   ${dependencies}
- )
- target_link_libraries(layers
+)
+target_link_libraries(layers
   nav2_costmap_2d
 )
 
-# TODO(bpwilcox): port nav2_costmap_2d_markers
-#add_executable(nav2_costmap_2d_markers src/costmap_2d_markers.cpp)
-#ament_target_dependencies(nav2_costmap_2d_markers ${${PROJECT_NAME}_EXPORTED_TARGETS} ${ament_EXPORTED_TARGETS})
-#target_link_libraries(nav2_costmap_2d_markers
-  #nav2_costmap_2d
+# TODO(bpwilcox): port costmap_2d_markers
+#add_executable(costmap_2d_markers src/costmap_2d_markers.cpp)
+#ament_target_dependencies(costmap_2d_markers ${${PROJECT_NAME}_EXPORTED_TARGETS} ${ament_EXPORTED_TARGETS})
+#target_link_libraries(costmap_2d_markers
+  #costmap_2d
 #)
 
 # TODO(bpwilcox): port nav2_costmap_2d_cloud
@@ -123,16 +133,17 @@ ament_target_dependencies(nav2_costmap_2d_node
 
 target_link_libraries(nav2_costmap_2d_node
   nav2_costmap_2d
+  layers
 )
 
-install(TARGETS nav2_costmap_2d layers nav2_costmap_2d_node
+install(TARGETS nav2_costmap_2d nav2_costmap_2d_node layers
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
 install(FILES costmap_plugins.xml
-  DESTINATION share/${PROJECT_NAME}
+  DESTINATION share
 )
 
 install(DIRECTORY include/
@@ -150,6 +161,7 @@ if(BUILD_TESTING)
 endif()
 
 ament_export_include_directories(include)
-ament_export_libraries(nav2_costmap_2d layers)
+ament_export_libraries(layers nav2_costmap_2d)
 ament_export_dependencies(${dependencies})
+pluginlib_export_plugin_description_file(nav2_costmap_2d costmap_plugins.xml)
 ament_package()

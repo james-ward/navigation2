@@ -41,12 +41,9 @@
 #include <nav2_costmap_2d/layered_costmap.h>
 #include <nav2_costmap_2d/layer.h>
 #include <nav2_costmap_2d/costmap_2d_publisher.h>
-//#include <nav2_costmap_2d/Costmap2DConfig.h>
 #include <nav2_costmap_2d/footprint.h>
 #include <geometry_msgs/msg/polygon.h>
 #include <geometry_msgs/msg/polygon_stamped.h>
-// TODO(bpwilcox): Resolve dynamic reconfigure dependencies
-//#include <dynamic_reconfigure/server.h>
 #include <pluginlib/class_loader.hpp>
 #include <xmlrpcpp/XmlRpcValue.h>
 #include <tf2/transform_datatypes.h>
@@ -59,6 +56,9 @@
 #include "tf2/LinearMath/Transform.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2/time.h"
+#include "rclcpp/parameter_events_filter.hpp"
+#include "nav2_dynamic_params/dynamic_params_validator.hpp"
+#include "nav2_dynamic_params/dynamic_params_client.hpp"
 
 class SuperValue : public XmlRpc::XmlRpcValue
 {
@@ -81,7 +81,7 @@ namespace nav2_costmap_2d
 /** @brief A ROS wrapper for a 2D Costmap. Handles subscribing to
  * topics that provide observations about obstacles in either the form
  * of PointCloud or LaserScan messages. */
-class Costmap2DROS
+class Costmap2DROS : public rclcpp::Node
 {
 public:
   /**
@@ -250,13 +250,14 @@ private:
    *
    * If the values of footprint and robot_radius are the same in
    * new_config and old_config, nothing is changed. */
-  //void readFootprintFromConfig(const nav2_costmap_2d::Costmap2DConfig &new_config,
-  //                             const nav2_costmap_2d::Costmap2DConfig &old_config);
+  void readFootprintFromConfig(const rcl_interfaces::msg::ParameterEvent::SharedPtr event);
 
   void resetOldParameters(rclcpp::Node::SharedPtr nh);
 
-  // TODO(bpwilcox): Resolve dynamic reconfigure dependencies
-  //void reconfigureCB(nav2_costmap_2d::Costmap2DConfig &config, uint32_t level);
+  void setPluginParams(rclcpp::Node::SharedPtr nh);
+
+  void reconfigureCB(const rcl_interfaces::msg::ParameterEvent::SharedPtr event);
+
   void movementCB();
 
   void mapUpdateLoop(double frequency);
@@ -270,14 +271,16 @@ private:
   geometry_msgs::msg::PoseStamped old_pose_;
   Costmap2DPublisher * publisher_;
 
-  // TODO(bpwilcox): Resolve dynamic reconfigure dependencies
-  //dynamic_reconfigure::Server<nav2_costmap_2d::Costmap2DConfig> *dsrv_;
-  //nav2_costmap_2d::Costmap2DConfig old_config_;
+  nav2_dynamic_params::DynamicParamsValidator * param_validator_;
+  nav2_dynamic_params::DynamicParamsClient * dynamic_param_client_;
 
   std::recursive_mutex configuration_mutex_;
-
+  
+  rclcpp::Node::SharedPtr node_;
+  rclcpp::SyncParametersClient::SharedPtr parameters_client_;
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr footprint_pub_;
   rclcpp::Subscription<geometry_msgs::msg::Polygon>::SharedPtr footprint_sub_;
+  rclcpp::Subscription<rcl_interfaces::msg::ParameterEvent>::SharedPtr parameter_sub_;
 
   std::vector<geometry_msgs::msg::Point> unpadded_footprint_;
   std::vector<geometry_msgs::msg::Point> padded_footprint_;
