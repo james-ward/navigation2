@@ -78,11 +78,8 @@ set(dependencies
   tf2_geometry_msgs
   tf2_sensor_msgs
   message_filters
-<<<<<<< HEAD
   laser_geometry
-=======
   nav2_dynamic_params
->>>>>>> ae2745f48c15fcd88111cd0a9d6b70a3c8f6b4a3
   nav2_util
 )
 
@@ -93,15 +90,8 @@ ament_target_dependencies(nav2_costmap_2d
 add_library(layers SHARED
   plugins/inflation_layer.cpp
   plugins/static_layer.cpp
-<<<<<<< HEAD
-  plugins/obstacle_layer.cpp
-=======
-  
-  #	TODO(bpwilcox): port additional plugin layers
-  #plugins/obstacle_layer.cpp
->>>>>>> ae2745f48c15fcd88111cd0a9d6b70a3c8f6b4a3
+  plugins/obstacle_layer.cpp  
   src/observation_buffer.cpp
-
   # TODO(bpwilcox): port additional plugin layers
   #plugins/voxel_layer.cpp
 )

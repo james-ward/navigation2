@@ -10,19 +10,16 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.
+// limitations under the License. Reserved.
 
 #include <memory>
 #include "rclcpp/rclcpp.hpp"
-#include "dwb_controller/dwb_controller.hpp"
+#include "nav2_world_model/world_model.hpp"
 
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  rclcpp::executors::SingleThreadedExecutor exec;
-  auto controller_node = std::make_shared<nav2_dwb_controller::DwbController>(exec);
-  exec.add_node(controller_node);
-  exec.spin();
+  rclcpp::spin(std::make_shared<nav2_world_model::WorldModel>());
   rclcpp::shutdown();
 
   return 0;

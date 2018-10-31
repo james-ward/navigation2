@@ -10,17 +10,20 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License. Reserved.
+// limitations under the License.
 
-#include <memory>
-#include "rclcpp/rclcpp.hpp"
-#include "nav2_costmap_world_model/costmap_world_model.hpp"
+#ifndef NAV2_TASKS__EXECUTE_MISSION_ACTION_HPP_
+#define NAV2_TASKS__EXECUTE_MISSION_ACTION_HPP_
 
-int main(int argc, char ** argv)
+#include "nav2_tasks/bt_action_node.hpp"
+#include "nav2_tasks/execute_mission_task.hpp"
+
+namespace nav2_tasks
 {
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<nav2_costmap_world_model::CostmapWorldModel>());
-  rclcpp::shutdown();
 
-  return 0;
-}
+using ExecuteMissionAction =
+  BtActionNode<ExecuteMissionCommand, ExecuteMissionResult>;
+
+}  // namespace nav2_tasks
+
+#endif  // NAV2_TASKS__EXECUTE_MISSION_ACTION_HPP_

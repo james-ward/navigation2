@@ -19,7 +19,7 @@ repositories:
     type: git
     url: https://github.com/bpwilcox/xmlrpcpp.git
     version: master
-  tf2_sensor_msgs:
+  behavior_tree_core:
     type: git
-    url: https://github.com/stevemacenski/geometry2
-    version: ros2
+    url: https://github.com/mjeronimo/BehaviorTree.CPP
+    version: master
