@@ -14,7 +14,7 @@
 
 #include <string>
 
-#include "nav2_map_server/map_factory.hpp"
+#include "nav2_map_server/map_representations/map_factory.hpp"
 
 namespace nav2_map_server
 {
@@ -25,8 +25,6 @@ BaseMapServer * MapFactory::CreateMap(
   if (map_type == "occupancy") {
     return new OccGridServer(file_name);
   } else {
-    RCLCPP_ERROR(node->get_logger(), "Cannot load map %s of type %s", file_name.c_str(),
-      map_type.c_str());
     throw std::runtime_error("Map type not supported");
   }
 }

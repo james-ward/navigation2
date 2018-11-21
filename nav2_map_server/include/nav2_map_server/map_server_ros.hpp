@@ -16,9 +16,8 @@
 #define NAV2_MAP_SERVER__MAP_SERVER_ROS_HPP_
 
 #include <string>
-
 #include "rclcpp/rclcpp.hpp"
-#include "nav2_map_server/map_factory.hpp"
+#include "nav2_map_server/map_representations/map_factory.hpp"
 #include "nav2_map_server/map_representations/map_reps.hpp"
 
 namespace nav2_map_server

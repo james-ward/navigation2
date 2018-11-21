@@ -12,22 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <string>
-#include "nav2_map_server/map_factory.hpp"
 #include "nav2_map_server/map_server_ros.hpp"
 
 namespace nav2_map_server
 {
 
-MapServerROS::MapServerROS(const std::string & file_name, const std::string & map_type) :
+MapServerROS::MapServerROS(const std::string & file_name, const std::string & map_type)
 {
   try {
     map_loader_ = new MapFactory();
-    RCLCPP_INFO(this->get_logger(), "Loading map %s of type '%s'", file_name.c_str(),
-      map_type.c_str());
     map_ = map_loader_->CreateMap(map_type, file_name);
+    RCLCPP_INFO(map_->get_logger(), "Loaded map %s of type '%s'", file_name.c_str(),
+      map_type.c_str());
   } catch (std::runtime_error e) {
-    RCLCPP_ERROR(this->get_logger(), "Cannot load map %s of type %s because: %s.",
+    RCLCPP_ERROR(map_->get_logger(), "Cannot load map %s of type %s because: %s.",
       file_name.c_str(), map_type.c_str(), e.what());
   }
 }
