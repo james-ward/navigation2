@@ -19,18 +19,16 @@
 namespace nav2_map_server
 {
 
-MapServerROS::MapServerROS(const std::string & file_name, const std::string & map_type)
+MapServerROS::MapServerROS(const std::string & file_name, const std::string & map_type) :
+: Node("map_server_ros")
 {
-  node_ = rclcpp::Node::make_shared("map_server");
-
   try {
     map_loader_ = new MapFactory();
-    RCLCPP_INFO(node_->get_logger(), "Loading map %s of type '%s'", file_name.c_str(),
+    RCLCPP_INFO(this->get_logger(), "Loading map %s of type '%s'", file_name.c_str(),
       map_type.c_str());
-    map_ = map_loader_->CreateMap(map_type, node_, file_name);
-    rclcpp::spin(node_);
+    map_ = map_loader_->CreateMap(map_type, node_, file_name);  
   } catch (std::runtime_error e) {
-    RCLCPP_ERROR(node_->get_logger(), "Cannot load map %s of type %s because: %s.",
+    RCLCPP_ERROR(this->get_logger(), "Cannot load map %s of type %s because: %s.",
       file_name.c_str(), map_type.c_str(), e.what());
   }
 }

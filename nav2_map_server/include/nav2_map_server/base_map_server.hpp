@@ -20,7 +20,7 @@
 namespace nav2_map_server
 {
 
-class BaseMapServer
+class BaseMapServer : public rclcpp::Node
 {
 public:
   virtual ~BaseMapServer() {}

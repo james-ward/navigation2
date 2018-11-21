@@ -34,8 +34,6 @@ private:
   BaseMapServer * map_;
 
   // TODO(bpwilcox): Add converter for map representations
-
-  rclcpp::Node::SharedPtr node_;
 };
 
 }  // namespace nav2_map_server
