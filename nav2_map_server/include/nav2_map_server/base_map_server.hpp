@@ -23,7 +23,8 @@ namespace nav2_map_server
 class BaseMapServer : public rclcpp::Node
 {
 public:
-  virtual ~BaseMapServer() {}
+  BaseMapServer() : Node("map_server") {};
+  virtual ~BaseMapServer() {};
 
   virtual void LoadMapInfoFromFile(const std::string & file_name) = 0;
   virtual void LoadMapFromFile(const std::string & map_name) = 0;

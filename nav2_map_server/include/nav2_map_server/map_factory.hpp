@@ -27,8 +27,7 @@ class MapFactory
 {
 public:
   BaseMapServer * CreateMap(
-    const std::string & map_type, rclcpp::Node::SharedPtr node,
-    const std::string & file_name);
+    const std::string & map_type, const std::string & file_name);
 };
 
 }  // namespace nav2_map_server

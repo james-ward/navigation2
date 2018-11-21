@@ -30,9 +30,7 @@ namespace nav2_map_server
 class OccGridServer : public BaseMapServer
 {
 public:
-  explicit OccGridServer(rclcpp::Node::SharedPtr node)
-  : node_(node) {}
-  OccGridServer(rclcpp::Node::SharedPtr node, std::string file_name);
+  OccGridServer(std::string file_name);
   OccGridServer() {}
   ~OccGridServer() {}
 
@@ -54,9 +52,6 @@ protected:
   MapMode mode_ = TRINARY;
   std::string frame_id_ = "map";
   std::string map_name_;
-
-  // The ROS node to use for ROS-related operations such as creating a service
-  rclcpp::Node::SharedPtr node_;
 
   // A service to provide the ouccpancy grid (GetMap) and the message to return
   rclcpp::Service<nav_msgs::srv::GetMap>::SharedPtr occ_service_;

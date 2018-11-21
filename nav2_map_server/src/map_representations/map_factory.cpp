@@ -20,11 +20,10 @@ namespace nav2_map_server
 {
 
 BaseMapServer * MapFactory::CreateMap(
-  const std::string & map_type,
-  rclcpp::Node::SharedPtr node, const std::string & file_name)
+  const std::string & map_type, const std::string & file_name)
 {
   if (map_type == "occupancy") {
-    return new OccGridServer(node, file_name);
+    return new OccGridServer(file_name);
   } else {
     RCLCPP_ERROR(node->get_logger(), "Cannot load map %s of type %s", file_name.c_str(),
       map_type.c_str());

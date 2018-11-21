@@ -61,20 +61,19 @@ void operator>>(const YAML::Node & node, T & i)
   i = node.as<T>();
 }
 
-OccGridServer::OccGridServer(rclcpp::Node::SharedPtr node, std::string file_name)
-: node_(node)
+OccGridServer::OccGridServer(std::string file_name)
 {
-  RCLCPP_INFO(node_->get_logger(), "OccGridServer: Load map info for map file: %s",
+  RCLCPP_INFO(this->get_logger(), "OccGridServer: Load map info for map file: %s",
     file_name.c_str());
   LoadMapInfoFromFile(file_name);
 
-  RCLCPP_INFO(node_->get_logger(), "OccGridServer: Loading Map: %s", map_name_.c_str());
+  RCLCPP_INFO(this->get_logger(), "OccGridServer: Loading Map: %s", map_name_.c_str());
   LoadMapFromFile(map_name_);
 
   ConnectROS();
   SetMap();
   PublishMap();
-  RCLCPP_INFO(node_->get_logger(), "OccGridServer: Set up map request service and publisher.");
+  RCLCPP_INFO(this->get_logger(), "OccGridServer: Set up map request service and publisher.");
 }
 
 void OccGridServer::LoadMapInfoFromFile(const std::string & file_name)
@@ -275,9 +274,9 @@ void OccGridServer::LoadMapFromFile(const std::string & map_name_)
 
   SDL_FreeSurface(img);
 
-  map_msg_.info.map_load_time = node_->now();
+  map_msg_.info.map_load_time = this->now();
   map_msg_.header.frame_id = frame_id_;
-  map_msg_.header.stamp = node_->now();
+  map_msg_.header.stamp = this->now();
 
   RCLCPP_INFO(rclcpp::get_logger("map_server"), "Read map %s: %d X %d map @ %.3lf m/cell",
     map_name_.c_str(),
@@ -293,7 +292,7 @@ void OccGridServer::ConnectROS()
   custom_qos_profile.depth = 1;
   custom_qos_profile.durability = RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
   custom_qos_profile.reliability = RMW_QOS_POLICY_RELIABILITY_RELIABLE;
-  occ_pub_ = node_->create_publisher<nav_msgs::msg::OccupancyGrid>(
+  occ_pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>(
     "occ_grid", custom_qos_profile);
 
   // Create a service callback handle
@@ -301,12 +300,12 @@ void OccGridServer::ConnectROS()
     const std::shared_ptr<rmw_request_id_t>/*request_header*/,
     const std::shared_ptr<nav_msgs::srv::GetMap::Request>/*request*/,
     std::shared_ptr<nav_msgs::srv::GetMap::Response> response) -> void {
-      RCLCPP_INFO(node_->get_logger(), "OccGridServer: handle_occ_callback");
+      RCLCPP_INFO(this->get_logger(), "OccGridServer: handle_occ_callback");
       response->map = occ_resp_.map;
     };
 
   // Create a service that provides the occupancy grid
-  occ_service_ = node_->create_service<nav_msgs::srv::GetMap>("occ_grid", handle_occ_callback);
+  occ_service_ = this->create_service<nav_msgs::srv::GetMap>("occ_grid", handle_occ_callback);
 }
 
 void OccGridServer::SetMap()
@@ -322,7 +321,7 @@ void OccGridServer::PublishMap()
   // message to rviz on the ROS1 side
   // TODO(mjeronimo): Remove this once we've got everything on the ROS2 side
   auto timer_callback = [this]() -> void {occ_pub_->publish(map_msg_);};
-  timer_ = node_->create_wall_timer(2s, timer_callback);
+  timer_ = this->create_wall_timer(2s, timer_callback);
 }
 
 }  // namespace nav2_map_server
