@@ -27,11 +27,11 @@
 namespace nav2_map_server
 {
 
-class OccGridServer : public BaseMapServer
+class OccGridServer : public BaseMapServer, public rclcpp::Node
 {
 public:
   OccGridServer(std::string file_name);
-  OccGridServer() {}
+  OccGridServer()  : Node("map_server") {}
   ~OccGridServer() {}
 
   void LoadMapInfoFromFile(const std::string & file_name);

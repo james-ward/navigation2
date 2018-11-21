@@ -61,7 +61,7 @@ void operator>>(const YAML::Node & node, T & i)
   i = node.as<T>();
 }
 
-OccGridServer::OccGridServer(std::string file_name)
+OccGridServer::OccGridServer(std::string file_name) : Node("map_server")
 {
   RCLCPP_INFO(this->get_logger(), "OccGridServer: Load map info for map file: %s",
     file_name.c_str());
