@@ -19,11 +19,11 @@
 namespace nav2_map_server
 {
 
-BaseMapServer * MapFactory::CreateMap(
+std::shared_ptr<rclcpp::Node> MapFactory::CreateMapNode(
   const std::string & map_type, const std::string & file_name)
 {
   if (map_type == "occupancy") {
-    return new OccGridServer(file_name);
+    return std::make_shared<rclcpp::Node>(OccGridServer(file_name));
   } else {
     throw std::runtime_error("Map type not supported");
   }

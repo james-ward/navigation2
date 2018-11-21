@@ -24,6 +24,7 @@ MapServerROS::MapServerROS(const std::string & file_name, const std::string & ma
     map_ = map_loader_->CreateMap(map_type, file_name);
     RCLCPP_INFO(map_->get_logger(), "Loaded map %s of type '%s'", file_name.c_str(),
       map_type.c_str());
+    rclcpp::spin(map_);
   } catch (std::runtime_error e) {
     RCLCPP_ERROR(map_->get_logger(), "Cannot load map %s of type %s because: %s.",
       file_name.c_str(), map_type.c_str(), e.what());

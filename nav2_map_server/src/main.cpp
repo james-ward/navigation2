@@ -32,10 +32,7 @@ int main(int argc, char ** argv)
   std::string map_type = (argc == 2) ? "occupancy" : std::string(argv[2]);
 
   try {
-    auto map_server_node = rclcpp::Node::make_shared<nav2_map_server::MapServerROS>(file_name, map_type);
-    rclcpp::executors::SingleThreadedExecutor exec;
-    exec.add_node(map_server_node);
-    exec.spin();
+    nav2_map_server::MapServerROS map_server_node(file_name, map_type);
   } catch (std::runtime_error & e) {
     RCLCPP_ERROR(rclcpp::get_logger("map_server"), "%s", e.what());
     return -1;

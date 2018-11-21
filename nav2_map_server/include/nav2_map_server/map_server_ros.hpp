@@ -30,7 +30,7 @@ public:
 
 private:
   MapFactory * map_loader_;
-  BaseMapServer * map_;
+  std::shared_ptr<rclcpp::Node> map_;
 
   // TODO(bpwilcox): Add converter for map representations
 };
