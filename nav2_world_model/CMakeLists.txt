@@ -15,13 +15,7 @@ include_directories(
   include
 )
 
-set(executable_name world_model)
-
-add_executable(${executable_name}
-  src/main.cpp
-)
-
-set(library_name ${executable_name}_core)
+set(library_name world_model_core)
 
 add_library(${library_name} SHARED
   src/world_model.cpp
@@ -38,17 +32,17 @@ set(dependencies
   tf2_ros
 )
 
-ament_target_dependencies(${executable_name}
-  ${dependencies}
-)
-
-target_link_libraries(${executable_name} ${library_name})
+target_link_libraries(${library_name})
 
 ament_target_dependencies(${library_name}
   ${dependencies}
 )
 
-install(TARGETS ${executable_name} ${library_name}
+install(DIRECTORY include/
+  DESTINATION include/
+)
+
+install(TARGETS ${library_name}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME})
@@ -59,5 +53,7 @@ if(BUILD_TESTING)
 endif()
 
 ament_export_include_directories(include)
+ament_export_libraries(world_model_core)
+ament_export_dependencies(${dependencies})
 
 ament_package()

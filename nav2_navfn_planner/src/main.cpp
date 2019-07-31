@@ -15,13 +15,21 @@
 #include <memory>
 
 #include "nav2_navfn_planner/navfn_planner.hpp"
+#include "nav2_world_model/world_model.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<nav2_navfn_planner::NavfnPlanner>();
-  rclcpp::spin(node->get_node_base_interface());
+  rclcpp::executors::SingleThreadedExecutor exec;
+
+	auto nvFnNode = std::make_shared<nav2_navfn_planner::NavfnPlanner>();
+  auto worldModelNode = std::make_shared<nav2_world_model::WorldModel>();   
+
+  exec.add_node(worldModelNode->get_node_base_interface());
+  exec.add_node(nvFnNode->get_node_base_interface());
+  exec.spin();
+
   rclcpp::shutdown();
 
   return 0;

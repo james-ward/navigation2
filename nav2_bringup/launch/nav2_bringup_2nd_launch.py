@@ -19,12 +19,6 @@ def generate_launch_description():
             'use_sim_time', default_value='false', description='Use simulation (Gazebo) clock if true'),
 
         launch_ros.actions.Node(
-            package='nav2_world_model',
-            node_executable='world_model',
-            output='screen',
-            parameters=[params_file]),
-
-        launch_ros.actions.Node(
             package='dwb_controller',
             node_executable='dwb_controller',
             output='screen',

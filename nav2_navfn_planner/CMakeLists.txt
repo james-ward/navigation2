@@ -9,6 +9,7 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(nav2_util REQUIRED)
+find_package(nav2_world_model REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -34,6 +35,7 @@ set(dependencies
   nav_msgs
   geometry_msgs
   builtin_interfaces
+  nav2_world_model
 )
 
 add_library(${library_name} SHARED
@@ -72,5 +74,6 @@ endif()
 
 ament_export_include_directories(include)
 ament_export_libraries(${library_name})
+ament_export_dependencies(${dependencies})
 
 ament_package()
