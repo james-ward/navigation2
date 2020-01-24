@@ -179,6 +179,7 @@ DWBLocalPlanner::loadCritics()
     plugin_class = resolveCriticClassName(plugin_class);
 
     TrajectoryCritic::Ptr plugin = critic_loader_.createUniqueInstance(plugin_class);
+
     RCLCPP_INFO(node_->get_logger(),
       "Using critic \"%s\" (%s)", critic_plugin_name.c_str(), plugin_class.c_str());
     critics_.push_back(plugin);

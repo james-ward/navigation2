@@ -52,38 +52,18 @@ public:
 
   void onObstacleReceieved(const typename std_msgs::msg::Int32::SharedPtr msg)
   {
-    RCLCPP_INFO_ONCE(node_->get_logger(), "Got dynamic obstacle data");
     is_dynamic_ = msg->data > min_count_ ? true : false;
   }
 
   BT::NodeStatus tick() override
   {
-    if (isDynamic()) {
-      log("Robot in dynamic environment!");
+    if (is_dynamic_) {
       // paper cheat: cancel other server here TODO
 
       return BT::NodeStatus::SUCCESS;
     }
 
-    log("Robot is in static environment");
     return BT::NodeStatus::FAILURE;
-  }
-
-  void log(const std::string & msg) const
-  {
-    static std::string prev_msg;
-
-    if (msg == prev_msg) {
-      return;
-    }
-
-    RCLCPP_INFO(node_->get_logger(), msg);
-    prev_msg = msg;
-  }
-
-  bool isDynamic()
-  {
-    return is_dynamic_;
   }
 
   static BT::PortsList providedPorts()
@@ -95,13 +75,9 @@ public:
   }
 
 private:
-  // The node that will be used for any ROS operations
   rclcpp::Node::SharedPtr node_;
-
   std::atomic<bool> is_dynamic_;
   int min_count_;
-
-  // Listen to odometry
   rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr obj_sub_;
 };
 
