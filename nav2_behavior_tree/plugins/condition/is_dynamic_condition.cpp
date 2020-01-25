@@ -43,7 +43,7 @@ public:
   {
     node_ = config().blackboard->get<rclcpp::Node::SharedPtr>("node");
     getInput("min_count", min_count_);
-    obj_sub_ = node_->create_subscription<std_msgs::msg::Int32>("dynamic_obstacle_count",
+    obj_sub_ = node_->create_subscription<std_msgs::msg::Int32>("num_dynamic_obstacles",
         rclcpp::SystemDefaultsQoS(),
         std::bind(&IsIsDynamicCondition::onObstacleReceieved, this, std::placeholders::_1));
   }
@@ -58,8 +58,6 @@ public:
   BT::NodeStatus tick() override
   {
     if (is_dynamic_) {
-      // paper cheat: cancel other server here TODO
-
       return BT::NodeStatus::SUCCESS;
     }
 

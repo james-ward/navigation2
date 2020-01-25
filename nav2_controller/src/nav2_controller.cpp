@@ -297,6 +297,7 @@ void ControllerServer::computeAndPublishVelocity()
   }
 
   progress_checker_->check(pose);
+  RCLCPP_INFO(get_logger(), "Using controller: %s.", current_controller_.c_str());
 
   auto cmd_vel_2d =
     controllers_[current_controller_]->computeVelocityCommands(pose,
