@@ -16,9 +16,6 @@ Manually Build From Source
   - :ref:`master-build`
   - :ref:`specific-distro-build`
 
-Quickstart Using Setup Script
-  - :ref:`quick-start`
-
 Using Docker
   - :ref:`docker`
 
@@ -31,7 +28,6 @@ Using Docker
 
    build_docs/manual_build/specific_distro_build.rst
    build_docs/manual_build/master_build.rst
-   build_docs/quick_start.rst
    build_docs/manual_build/docker.rst
    build_docs/doxygen.rst
    build_docs/build_troubleshooting_guide.rst
