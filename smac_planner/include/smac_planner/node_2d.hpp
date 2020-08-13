@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License. Reserved.
 
-#ifndef SMAC_PLANNER__NODE_HPP_
-#define SMAC_PLANNER__NODE_HPP_
+#ifndef SMAC_PLANNER__NODE_2D_HPP_
+#define SMAC_PLANNER__NODE_2D_HPP_
 
 #include <vector>
 #include <iostream>
@@ -26,18 +26,33 @@ namespace smac_planner
 {
 
 /**
- * @class smac_planner::Node
- * @brief Node implementation for graph
+ * @class smac_planner::Node2D
+ * @brief Node2D implementation for graph
  */
-class Node
+class Node2D
 {
 public:
+
   /**
-   * @brief A constructor for smac_planner::Node
+   * @class smac_planner::Node2D::Coordinates
+   * @brief Node2D implementation of coordinate structure
+   */
+  struct Coordinates
+  {
+    Coordinates() {};
+    Coordinates(const float & x_in, const float & y_in)
+    : x(x_in), y(y_in)
+    {};
+    
+    float x, y; 
+  };
+
+  /**
+   * @brief A constructor for smac_planner::Node2D
    * @param cost_in The costmap cost at this node
    * @param index The index of this node for self-reference
    */
-  explicit Node(unsigned char & cost_in, const unsigned int index)
+  explicit Node2D(unsigned char & cost_in, const unsigned int index)
   : parent(nullptr),
     _cell_cost(static_cast<float>(cost_in)),
     _accumulated_cost(std::numeric_limits<float>::max()),
@@ -48,19 +63,19 @@ public:
   }
 
   /**
-   * @brief A destructor for smac_planner::Node
+   * @brief A destructor for smac_planner::Node2D
    */
-  ~Node()
+  ~Node2D()
   {
     parent = nullptr;
   }
 
   /**
    * @brief operator== for comparisons
-   * @param Node right hand side node reference
+   * @param Node2D right hand side node reference
    * @return If cell indicies are equal
    */
-  bool operator==(const Node & rhs)
+  bool operator==(const Node2D & rhs)
   {
     return this->_index == rhs._index;
   }
@@ -179,7 +194,39 @@ public:
     return true;
   }
 
-  Node * parent;
+  static inline unsigned int getIndex(
+    const unsigned int & x, const unsigned int & y, const unsigned int & width)
+  {
+    return x + y * width;
+  }
+
+  static inline Coordinates getCoords(
+    const unsigned int & index, const unsigned int & width, const unsigned int & angles)
+  {
+    if (angles != 1) {
+      throw std::runtime_error("Node type Node2D does not have a valid angle quantization.");
+    }
+
+    return Coordinates(index % width, index / width);
+  }
+
+  /**
+   * @brief Get cost of heuristic of node
+   * @param node Node index current
+   * @param node Node index of new
+   * @return Heuristic cost between the nodes
+   */
+  static float getHeuristicCost(
+    const Coordinates & node_coords,
+    const Coordinates & goal_coordinates,
+    const float & neutral_cost)
+  {
+    return hypotf(
+      goal_coordinates.x - node_coords.x,
+      goal_coordinates.y - node_coords.y) * neutral_cost;
+  }
+
+  Node2D * parent;
 
 private:
   float _cell_cost;
@@ -191,4 +238,4 @@ private:
 
 }  // namespace smac_planner
 
-#endif  // SMAC_PLANNER__NODE_HPP_
+#endif  // SMAC_PLANNER__NODE_2D_HPP_

@@ -22,7 +22,8 @@
 #include <queue>
 #include <utility>
 
-#include "smac_planner/node.hpp"
+#include "smac_planner/node_2d.hpp"
+#include "smac_planner/node_3d.hpp"
 #include "smac_planner/types.hpp"
 #include "smac_planner/constants.hpp"
 
@@ -41,7 +42,7 @@ public:
   typedef std::vector<NodeT> Graph;
   typedef std::vector<NodePtr> NodeVector;
   typedef std::pair<float, NodePtr> NodeElement;
-  typedef std::pair<float, unsigned int> NodeHeuristicPair;
+  typedef typename NodeT::Coordinates Coordinates;
 
   struct NodeComparator
   {
@@ -89,12 +90,13 @@ public:
   bool createPath(IndexPath & path, int & num_iterations, const float & tolerance);
 
   /**
-   * @brief Set the costs of the graph
+   * @brief Create the graph based on the node type. For 2D nodes, a cost grid.
+   *   For 3D nodes, a SE2 grid without cost info as needs collision detector for footprint. 
    * @param x The total number of nodes in the X direction
    * @param y The total number of nodes in the X direction
    * @param costs unsigned char * to the costs in the graph
    */
-  void setCosts(
+  void createGraph(
     const unsigned int & x,
     const unsigned int & y,
     unsigned char * & costs);
@@ -187,7 +189,7 @@ private:
    * @param node Node index of new
    * @return Heuristic cost between the nodes
    */
-  inline float getHeuristicCost(const unsigned int & node);
+  inline float getHeuristicCost(const NodePtr & node);
 
   /**
    * @brief Check if inputs to planner are valid
@@ -220,11 +222,10 @@ private:
   inline unsigned int & getSizeY();
 
   /**
-   * @brief Get node coordinates from index
-   * @param index Index of node
-   * @return pair of XY coordinates
+   * @brief Get number of angle quantization bins
+   * @return Number of angle bins
    */
-  inline Coordinates getCoords(const unsigned int & index);
+  inline unsigned int & getSizeTheta();
 
   /**
    * @brief Clear hueristic queue of nodes to search
@@ -239,6 +240,7 @@ private:
   float _tolerance;
   unsigned int _x_size;
   unsigned int _y_size;
+  unsigned int _angle_quantization;
 
   Coordinates _goal_coordinates;
   NodePtr _start;

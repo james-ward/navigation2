@@ -73,12 +73,14 @@ void AStarAlgorithm<NodeT>::initialize(
   _max_on_approach_iterations = max_on_approach_iterations;
 }
 
-template<typename NodeT>
-void AStarAlgorithm<NodeT>::setCosts(
+template <>
+void AStarAlgorithm<Node2D>::createGraph(
   const unsigned int & x,
   const unsigned int & y,
   unsigned char * & costs)
 {
+  _angle_quantization = 1; // TODO STEVE parameterize
+
   if (getSizeX() != x || getSizeY() != y) {
     _x_size = x;
     _y_size = y;
@@ -93,6 +95,45 @@ void AStarAlgorithm<NodeT>::setCosts(
     for (unsigned int i = 0; i != x * y; i++) {
       // Optimization: operator[] is used over at() for performance (no bound checking)
       _graph->operator[](i).reset(costs[i], i);
+    }
+  }
+}
+
+template <>
+void AStarAlgorithm<Node3D>::createGraph(
+  const unsigned int & x,
+  const unsigned int & y,
+  unsigned char * & costs)
+{
+  _angle_quantization = 8; // TODO STEVE parameterize
+
+  if (getSizeX() != x || getSizeY() != y) {
+    _x_size = x;
+    _y_size = y;
+    int x_size_int = static_cast<int>(_x_size);
+    initNeighborhoods(x_size_int, _neighborhood);//TODO STEVE for 3d motion model
+    _graph->clear();
+    _graph->reserve(x * y * _angle_quantization);
+
+    for (unsigned int i = 0; i != x; i++) {
+      for (unsigned int j = 0; i != y; j++) {
+        for (unsigned int k = 0; k != _angle_quantization; k++) {
+          _graph->emplace_back(
+            costs[i * j],
+            Node3D::getIndex(i, j, k, _x_size, _angle_quantization));
+        }
+      }
+    }
+  } else {
+    for (unsigned int i = 0; i != x; i++) {
+      for (unsigned int j = 0; i != y; j++) {
+        for (unsigned int k = 0; k != _angle_quantization; k++) {
+          // Optimization: operator[] is used over at() for performance (no bound checking)
+          _graph->operator[](i).reset(
+            costs[i * j],
+            Node3D::getIndex(i, j, k, _x_size, _angle_quantization));
+        }
+      }
     }
   }
 }
@@ -120,14 +161,14 @@ void AStarAlgorithm<NodeT>::initNeighborhoods(
 template<typename NodeT>
 void AStarAlgorithm<NodeT>::setStart(const unsigned int & value)
 {
-  _start = & _graph->operator[](value);
+  _start = & _graph->operator[](value); //TODO STEVE angle bin
 }
 
-template<typename NodeT>
+template <typename NodeT>
 void AStarAlgorithm<NodeT>::setGoal(const unsigned int & value)
 {
-  _goal = & _graph->operator[](value);
-  _goal_coordinates = getCoords(_goal->getIndex());
+  _goal = & _graph->operator[](value);//TODO STEVE angle bin
+  _goal_coordinates = NodeT::getCoords(_goal->getIndex(), getSizeX(), getSizeTheta());
 }
 
 template<typename NodeT>
@@ -235,7 +276,7 @@ bool AStarAlgorithm<NodeT>::createPath(IndexPath & path, int & iterations, const
         // 4.3) If not in queue or visited, add it
         if (!neighbor->wasVisited()) {
           neighbor->queued();
-          addNode(g_cost + getHeuristicCost(neighbor->getIndex()), neighbor);
+          addNode(g_cost + getHeuristicCost(neighbor), neighbor);
         }
       }
     }
@@ -246,7 +287,7 @@ bool AStarAlgorithm<NodeT>::createPath(IndexPath & path, int & iterations, const
 
 // Specialized method getNeighbors for 2D nodes
 template <>
-void AStarAlgorithm<Node>::getNeighbors(NodePtr & node, NodeVector & neighbors)
+void AStarAlgorithm<Node2D>::getNeighbors(NodePtr & node, NodeVector & neighbors)
 {
   // NOTE(stevemacenski): Irritatingly, the order here matters. If you start in free
   // space and then expand 8-connected, the first set of neighbors will be all cost
@@ -338,12 +379,11 @@ float AStarAlgorithm<NodeT>::getTraversalCost(
 }
 
 template<typename NodeT>
-float AStarAlgorithm<NodeT>::getHeuristicCost(const unsigned int & node)
+float AStarAlgorithm<NodeT>::getHeuristicCost(const NodePtr & node)
 {
-  Coordinates node_coords = getCoords(node);
-  float heuristic = hypotf(
-    _goal_coordinates.first - node_coords.first,
-    _goal_coordinates.second - node_coords.second) * _neutral_cost;
+  Coordinates node_coords = NodeT::getCoords(node->getIndex(), getSizeX(), getSizeTheta());
+  float heuristic = NodeT::getHeuristicCost(
+    node_coords, _goal_coordinates, _neutral_cost);
   
   // If we're far from goal, we want to ensure we can speed it along
   if (heuristic > getToleranceHeuristic()) {
@@ -351,7 +391,7 @@ float AStarAlgorithm<NodeT>::getHeuristicCost(const unsigned int & node)
   }
 
   if (heuristic < _best_heuristic_node.first) {
-    _best_heuristic_node = {heuristic, node};
+    _best_heuristic_node = {heuristic, node->getIndex()};
   }
 
   return heuristic;
@@ -363,14 +403,6 @@ void AStarAlgorithm<NodeT>::clearQueue()
   while (!_queue->empty()) {
     _queue->pop();
   }
-}
-
-template<typename NodeT>
-Coordinates AStarAlgorithm<NodeT>::getCoords(const unsigned int & index)
-{
-  return Coordinates(
-    static_cast<float>(index % getSizeX()),
-    static_cast<float>(index / getSizeX()));
 }
 
 template<typename NodeT>
@@ -403,8 +435,15 @@ unsigned int & AStarAlgorithm<NodeT>::getSizeY()
   return _y_size;
 }
 
+template<typename NodeT>
+unsigned int & AStarAlgorithm<NodeT>::getSizeTheta()
+{
+  return _angle_quantization;
+}
+
 // Instantiate AStartAlgorithm for the supported template type parameters
 // This is needed to prevent "undefined symbol" errors at runtime.
-template class AStarAlgorithm<Node>;
+template class AStarAlgorithm<Node2D>;
+template class AStarAlgorithm<Node3D>;
 
 }  // namespace smac_planner

@@ -91,7 +91,7 @@ public:
   void removeHook(std::vector<Eigen::Vector2d> & path);
 
 protected:
-  std::unique_ptr<AStarAlgorithm<Node>> _a_star;
+  std::unique_ptr<AStarAlgorithm<Node2D>> _a_star;
   std::unique_ptr<Smoother> _smoother;
   std::unique_ptr<Upsampler> _upsampler;
   std::unique_ptr<CostmapDownsampler> _costmap_downsampler;
