@@ -77,9 +77,14 @@ template <>
 void AStarAlgorithm<Node2D>::createGraph(
   const unsigned int & x,
   const unsigned int & y,
+  const unsigned int & theta,
   unsigned char * & costs)
 {
-  _angle_quantization = 1; // TODO STEVE parameterize
+  if (theta != 1) {
+    throw std::runtime_error("Node type Node2D cannot be given non-1 angle quantization.");
+  }
+
+  _dim3_size = theta;  // 2D search MUST be 2D, not 3D or SE2.
 
   if (getSizeX() != x || getSizeY() != y) {
     _x_size = x;
@@ -100,12 +105,13 @@ void AStarAlgorithm<Node2D>::createGraph(
 }
 
 template <>
-void AStarAlgorithm<Node3D>::createGraph(
+void AStarAlgorithm<NodeSE2>::createGraph(
   const unsigned int & x,
   const unsigned int & y,
+  const unsigned int & theta,
   unsigned char * & costs)
 {
-  _angle_quantization = 8; // TODO STEVE parameterize
+  _dim3_size = theta;  //TODO application use
 
   if (getSizeX() != x || getSizeY() != y) {
     _x_size = x;
@@ -113,25 +119,25 @@ void AStarAlgorithm<Node3D>::createGraph(
     int x_size_int = static_cast<int>(_x_size);
     initNeighborhoods(x_size_int, _neighborhood);//TODO STEVE for 3d motion model
     _graph->clear();
-    _graph->reserve(x * y * _angle_quantization);
+    _graph->reserve(x * y * _dim3_size);
 
     for (unsigned int i = 0; i != x; i++) {
       for (unsigned int j = 0; i != y; j++) {
-        for (unsigned int k = 0; k != _angle_quantization; k++) {
+        for (unsigned int k = 0; k != _dim3_size; k++) {
           _graph->emplace_back(
             costs[i * j],
-            Node3D::getIndex(i, j, k, _x_size, _angle_quantization));
+            NodeSE2::getIndex(i, j, k, _x_size, _dim3_size));
         }
       }
     }
   } else {
     for (unsigned int i = 0; i != x; i++) {
       for (unsigned int j = 0; i != y; j++) {
-        for (unsigned int k = 0; k != _angle_quantization; k++) {
+        for (unsigned int k = 0; k != _dim3_size; k++) {
           // Optimization: operator[] is used over at() for performance (no bound checking)
           _graph->operator[](i).reset(
             costs[i * j],
-            Node3D::getIndex(i, j, k, _x_size, _angle_quantization));
+            NodeSE2::getIndex(i, j, k, _x_size, _dim3_size));
         }
       }
     }
@@ -158,17 +164,53 @@ void AStarAlgorithm<NodeT>::initNeighborhoods(
   }
 }
 
-template<typename NodeT>
-void AStarAlgorithm<NodeT>::setStart(const unsigned int & value)
+template <>
+void AStarAlgorithm<Node2D>::setStart(
+  const unsigned int & mx,
+  const unsigned int & my,
+  const unsigned int & theta)
 {
-  _start = & _graph->operator[](value); //TODO STEVE angle bin
+  if (theta != 0) {
+    throw std::runtime_error("Node type Node2D cannot be given non-zero starting angle.");
+  }
+  unsigned int index = Node2D::getIndex(mx, my, getSizeX());
+  _start = & _graph->operator[](index);
 }
 
-template <typename NodeT>
-void AStarAlgorithm<NodeT>::setGoal(const unsigned int & value)
+template <>
+void AStarAlgorithm<NodeSE2>::setStart(
+  const unsigned int & mx,
+  const unsigned int & my,
+  const unsigned int & theta)
 {
-  _goal = & _graph->operator[](value);//TODO STEVE angle bin
-  _goal_coordinates = NodeT::getCoords(_goal->getIndex(), getSizeX(), getSizeTheta());
+  unsigned int index = NodeSE2::getIndex(mx, my, theta, getSizeX(), getSizeDim3());
+  _start = & _graph->operator[](index);
+}
+
+template <>
+void AStarAlgorithm<Node2D>::setGoal(
+  const unsigned int & mx,
+  const unsigned int & my,
+  const unsigned int & theta)
+{
+  if (theta != 0) {
+    throw std::runtime_error("Node type Node2D cannot be given non-zero goal angle.");
+  }
+
+  unsigned int index = Node2D::getIndex(mx, my, getSizeX());
+  _goal = & _graph->operator[](index);
+  _goal_coordinates = Node2D::Coordinates(mx, my);
+}
+
+template <>
+void AStarAlgorithm<NodeSE2>::setGoal(
+  const unsigned int & mx,
+  const unsigned int & my,
+  const unsigned int & theta)
+{
+  unsigned int index = NodeSE2::getIndex(mx, my, theta, getSizeX(), getSizeDim3());
+  _goal = & _graph->operator[](index);
+  _goal_coordinates = NodeSE2::Coordinates(mx, my, theta);
 }
 
 template<typename NodeT>
@@ -287,7 +329,7 @@ bool AStarAlgorithm<NodeT>::createPath(IndexPath & path, int & iterations, const
 
 // Specialized method getNeighbors for 2D nodes
 template <>
-void AStarAlgorithm<Node2D>::getNeighbors(NodePtr & node, NodeVector & neighbors)
+void AStarAlgorithm<Node2D>::getNeighbors(NodePtr & node, NodeVector & neighbors) //TODO STEVE SE3 version
 {
   // NOTE(stevemacenski): Irritatingly, the order here matters. If you start in free
   // space and then expand 8-connected, the first set of neighbors will be all cost
@@ -381,7 +423,7 @@ float AStarAlgorithm<NodeT>::getTraversalCost(
 template<typename NodeT>
 float AStarAlgorithm<NodeT>::getHeuristicCost(const NodePtr & node)
 {
-  Coordinates node_coords = NodeT::getCoords(node->getIndex(), getSizeX(), getSizeTheta());
+  Coordinates node_coords = NodeT::getCoords(node->getIndex(), getSizeX(), getSizeDim3());
   float heuristic = NodeT::getHeuristicCost(
     node_coords, _goal_coordinates, _neutral_cost);
   
@@ -436,14 +478,14 @@ unsigned int & AStarAlgorithm<NodeT>::getSizeY()
 }
 
 template<typename NodeT>
-unsigned int & AStarAlgorithm<NodeT>::getSizeTheta()
+unsigned int & AStarAlgorithm<NodeT>::getSizeDim3()
 {
-  return _angle_quantization;
+  return _dim3_size;
 }
 
 // Instantiate AStartAlgorithm for the supported template type parameters
 // This is needed to prevent "undefined symbol" errors at runtime.
 template class AStarAlgorithm<Node2D>;
-template class AStarAlgorithm<Node3D>;
+template class AStarAlgorithm<NodeSE2>;
 
 }  // namespace smac_planner

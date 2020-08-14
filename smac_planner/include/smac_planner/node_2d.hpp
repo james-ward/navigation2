@@ -85,7 +85,7 @@ public:
    * @param cost_in The costmap cost at this node
    * @param index The index of this node for self-reference
    */
-  void reset(const unsigned char & cost, const unsigned int index)
+  inline void reset(const unsigned char & cost, const unsigned int index)
   {
     parent = nullptr;
     _cell_cost = static_cast<float>(cost);
@@ -99,7 +99,7 @@ public:
    * @brief Gets the accumulated cost at this node
    * @return accumulated cost
    */
-  float & getAccumulatedCost()
+  inline float & getAccumulatedCost()
   {
     return _accumulated_cost;
   }
@@ -108,7 +108,7 @@ public:
    * @brief Sets the accumulated cost at this node
    * @param reference to accumulated cost
    */
-  void setAccumulatedCost(const float cost_in)
+  inline void setAccumulatedCost(const float cost_in)
   {
     _accumulated_cost = cost_in;
   }
@@ -117,7 +117,7 @@ public:
    * @brief Gets the costmap cost at this node
    * @return costmap cost
    */
-  float & getCost()
+  inline float & getCost()
   {
     return _cell_cost;
   }
@@ -126,7 +126,7 @@ public:
    * @brief Gets if cell has been visited in search
    * @param If cell was visited
    */
-  bool & wasVisited()
+  inline bool & wasVisited()
   {
     return _was_visited;
   }
@@ -134,7 +134,7 @@ public:
   /**
    * @brief Sets if cell has been visited in search
    */
-  void visited()
+  inline void visited()
   {
     _was_visited = true;
     _is_queued = false;
@@ -144,7 +144,7 @@ public:
    * @brief Gets if cell is currently queued in search
    * @param If cell was queued
    */
-  bool & isQueued()
+  inline bool & isQueued()
   {
     return _is_queued;
   }
@@ -152,7 +152,7 @@ public:
   /**
    * @brief Sets if cell is currently queued in search
    */
-  void queued()
+  inline void queued()
   {
     _is_queued = true;
   }
@@ -161,7 +161,7 @@ public:
    * @brief Gets cell index
    * @return Reference to cell index
    */
-  unsigned int & getIndex()
+  inline unsigned int & getIndex()
   {
     return _index;
   }
@@ -171,7 +171,7 @@ public:
    * @param traverse_unknown If we can explore unknown nodes on the graph
    * @return whether this node is valid and collision free
    */
-  bool isNodeValid(const bool & traverse_unknown) {
+  inline bool isNodeValid(const bool & traverse_unknown) {
     // NOTE(stevemacenski): Right now, we do not check if the node has wrapped around
     // the regular grid (e.g. your node is on the edge of the costmap and i+1
     // goes to the other side). This check would add compute time and my assertion is
@@ -216,7 +216,7 @@ public:
    * @param node Node index of new
    * @return Heuristic cost between the nodes
    */
-  static float getHeuristicCost(
+  static inline float getHeuristicCost(
     const Coordinates & node_coords,
     const Coordinates & goal_coordinates,
     const float & neutral_cost)

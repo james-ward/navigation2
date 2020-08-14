@@ -113,6 +113,7 @@ void SmacPlanner::configure(
   std::string neighborhood_for_search;
 
   // General planner params
+  //TODO STEVE number of quantized bins angle
   nav2_util::declare_parameter_if_not_declared(
     _node, name + ".tolerance", rclcpp::ParameterValue(0.125));
   _tolerance = static_cast<float>(_node->get_parameter(name + ".tolerance").as_double());
@@ -280,18 +281,18 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
   _a_star->createGraph(
     costmap->getSizeInCellsX(),
     costmap->getSizeInCellsY(),
+    1, //TODO STEVE number of quanitized states, for SE2
     char_costmap);
 
   // Set starting point
   unsigned int mx, my, index;
   costmap->worldToMap(start.pose.position.x, start.pose.position.y, mx, my);
-  index = costmap->getIndex(mx, my);
-  _a_star->setStart(index);
+  _a_star->setStart(mx, my, 0);//TODO STEVE angle bin, in bin coords NOT global coords, for SE2
 
   // Set goal point
   costmap->worldToMap(goal.pose.position.x, goal.pose.position.y, mx, my);
   index = costmap->getIndex(mx, my);
-  _a_star->setGoal(index);
+  _a_star->setGoal(mx, my, 0);//TODO STEVE angle bin, in bin coords NOT global coords, for SE2
 
   // Setup message
   nav_msgs::msg::Path plan;

@@ -30,17 +30,19 @@ namespace smac_planner
     // doesnt matter as much for 2D planner, but really will matter here
     // might speed things up a bit. Reserve graph (full, 20%, whatever) but dont fill in.
 
+// TODO make Node3D for XYZ search (3D nav)
+
 /**
- * @class smac_planner::Node3D
- * @brief Node3D implementation for graph
+ * @class smac_planner::NodeSE2
+ * @brief NodeSE2 implementation for graph
  */
-class Node3D
+class NodeSE2
 {
 public:
 
   /**
-   * @class smac_planner::Node3D::Coordinates
-   * @brief Node3D implementation of coordinate structure
+   * @class smac_planner::NodeSE2::Coordinates
+   * @brief NodeSE2 implementation of coordinate structure
    */
   struct Coordinates
   {
@@ -53,11 +55,11 @@ public:
   };
 
   /**
-   * @brief A constructor for smac_planner::Node3D
+   * @brief A constructor for smac_planner::NodeSE2
    * @param cost_in The costmap cost at this node
    * @param index The index of this node for self-reference
    */
-  explicit Node3D(unsigned char & cost_in, const unsigned int index)
+  explicit NodeSE2(unsigned char & cost_in, const unsigned int index)
   : parent(nullptr),
     _cell_cost(static_cast<float>(cost_in)),
     _accumulated_cost(std::numeric_limits<float>::max()),
@@ -71,21 +73,47 @@ public:
   }
 
   /**
-   * @brief A destructor for smac_planner::Node3D
+   * @brief A destructor for smac_planner::NodeSE2
    */
-  ~Node3D()
+  ~NodeSE2()
   {
     parent = nullptr;
   }
 
   /**
    * @brief operator== for comparisons
-   * @param Node3D right hand side node reference
+   * @param NodeSE2 right hand side node reference
    * @return If cell indicies are equal
    */
-  bool operator==(const Node3D & rhs)
+  bool operator==(const NodeSE2 & rhs)
   {
     return this->_index == rhs._index;
+  }
+
+  /**
+   * @brief setting continuous coordinate search poses (in partial-cells)
+   * @param X X component of pose
+   * @param Y Y component of pose
+   * @param theta theta component of pose
+   */
+  inline void setPose(const float & x, const float & y, const float & theta)
+  {
+    _x = x;
+    _y = y;
+    _theta = theta;
+  }
+
+  /**
+   * @brief getting continuous coordinate search poses (in partial-cells)
+   * @param X X component of pose
+   * @param Y Y component of pose
+   * @param theta theta component of pose
+   */
+  inline void getPose(float & x, float & y, float & theta)
+  {
+    x = _x;
+    y = _y;
+    theta = _theta;
   }
 
   /**
@@ -93,7 +121,7 @@ public:
    * @param cost_in The costmap cost at this node
    * @param index The index of this node for self-reference
    */
-  void reset(const unsigned char & cost, const unsigned int index)
+  inline void reset(const unsigned char & cost, const unsigned int index)
   {
     parent = nullptr;
     _cell_cost = static_cast<float>(cost);
@@ -107,7 +135,7 @@ public:
    * @brief Gets the accumulated cost at this node
    * @return accumulated cost
    */
-  float & getAccumulatedCost()
+  inline float & getAccumulatedCost()
   {
     return _accumulated_cost;
   }
@@ -116,7 +144,7 @@ public:
    * @brief Sets the accumulated cost at this node
    * @param reference to accumulated cost
    */
-  void setAccumulatedCost(const float cost_in)
+  inline void setAccumulatedCost(const float cost_in)
   {
     _accumulated_cost = cost_in;
   }
@@ -125,7 +153,7 @@ public:
    * @brief Gets the costmap cost at this node
    * @return costmap cost
    */
-  float & getCost()
+  inline float & getCost()
   {
     return _cell_cost;
   }
@@ -134,7 +162,7 @@ public:
    * @brief Gets if cell has been visited in search
    * @param If cell was visited
    */
-  bool & wasVisited()
+  inline bool & wasVisited()
   {
     return _was_visited;
   }
@@ -142,7 +170,7 @@ public:
   /**
    * @brief Sets if cell has been visited in search
    */
-  void visited()
+  inline void visited()
   {
     _was_visited = true;
     _is_queued = false;
@@ -152,7 +180,7 @@ public:
    * @brief Gets if cell is currently queued in search
    * @param If cell was queued
    */
-  bool & isQueued()
+  inline bool & isQueued()
   {
     return _is_queued;
   }
@@ -160,7 +188,7 @@ public:
   /**
    * @brief Sets if cell is currently queued in search
    */
-  void queued()
+  inline void queued()
   {
     _is_queued = true;
   }
@@ -169,7 +197,7 @@ public:
    * @brief Gets cell index
    * @return Reference to cell index
    */
-  unsigned int & getIndex()
+  inline unsigned int & getIndex()
   {
     return _index;
   }
@@ -179,7 +207,7 @@ public:
    * @param traverse_unknown If we can explore unknown nodes on the graph
    * @return whether this node is valid and collision free
    */
-  bool isNodeValid(const bool & traverse_unknown) {
+  inline bool isNodeValid(const bool & traverse_unknown) {
     // NOTE(stevemacenski): Right now, we do not check if the node has wrapped around
     // the regular grid (e.g. your node is on the edge of the costmap and i+1
     // goes to the other side). This check would add compute time and my assertion is
@@ -235,7 +263,7 @@ public:
    * @param node Node index of new
    * @return Heuristic cost between the nodes
    */
-  static float getHeuristicCost(
+  static inline float getHeuristicCost(
     const Coordinates & node_coords,
     const Coordinates & goal_coordinates,
     const float & neutral_cost)
@@ -246,7 +274,7 @@ public:
       goal_coordinates.y - node_coords.y) * neutral_cost;
   }
 
-  Node3D * parent;
+  NodeSE2 * parent;
 
 private:
   float _cell_cost; // TODO temporary, to be repalced with pointer to collision detector

@@ -23,7 +23,7 @@
 #include <utility>
 
 #include "smac_planner/node_2d.hpp"
-#include "smac_planner/node_3d.hpp"
+#include "smac_planner/node_se2.hpp"
 #include "smac_planner/types.hpp"
 #include "smac_planner/constants.hpp"
 
@@ -99,19 +99,26 @@ public:
   void createGraph(
     const unsigned int & x,
     const unsigned int & y,
+    const unsigned int & theta,
     unsigned char * & costs);
 
   /**
    * @brief Set the goal for planning, as a node index
    * @param value The node index of the goal
    */
-  void setGoal(const unsigned int & value);
+  void setGoal(
+    const unsigned int & mx,
+    const unsigned int & my,
+    const unsigned int & theta);
 
   /**
    * @brief Set the starting pose for planning, as a node index
    * @param value The node index of the start
    */
-  void setStart(const unsigned int & value);
+  void setStart(
+    const unsigned int & mx,
+    const unsigned int & my,
+    const unsigned int & theta);
 
   /**
    * @brief Set the starting pose for planning, as a node index
@@ -222,10 +229,10 @@ private:
   inline unsigned int & getSizeY();
 
   /**
-   * @brief Get number of angle quantization bins
-   * @return Number of angle bins
+   * @brief Get number of angle quantization bins (SE2) or Z coordinate  (XYZ)
+   * @return Number of angle bins / Z dimension
    */
-  inline unsigned int & getSizeTheta();
+  inline unsigned int & getSizeDim3();
 
   /**
    * @brief Clear hueristic queue of nodes to search
@@ -240,7 +247,7 @@ private:
   float _tolerance;
   unsigned int _x_size;
   unsigned int _y_size;
-  unsigned int _angle_quantization;
+  unsigned int _dim3_size;
 
   Coordinates _goal_coordinates;
   NodePtr _start;
