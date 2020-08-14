@@ -17,6 +17,7 @@
 #include <memory>
 #include <algorithm>
 #include <limits>
+#include <type_traits>
 
 #include "smac_planner/a_star.hpp"
 
@@ -89,8 +90,7 @@ void AStarAlgorithm<Node2D>::createGraph(
   if (getSizeX() != x || getSizeY() != y) {
     _x_size = x;
     _y_size = y;
-    int x_size_int = static_cast<int>(_x_size);
-    initNeighborhoods(x_size_int, _neighborhood);
+    Node2D::initNeighborhoods(_x_size, _neighborhood);
     _graph->clear();
     _graph->reserve(x * y);
     for (unsigned int i = 0; i != x * y; i++) {
@@ -111,13 +111,12 @@ void AStarAlgorithm<NodeSE2>::createGraph(
   const unsigned int & theta,
   unsigned char * & costs)
 {
-  _dim3_size = theta;  //TODO application use
+  _dim3_size = theta;
 
   if (getSizeX() != x || getSizeY() != y) {
     _x_size = x;
     _y_size = y;
-    int x_size_int = static_cast<int>(_x_size);
-    initNeighborhoods(x_size_int, _neighborhood);//TODO STEVE for 3d motion model
+    //initNeighborhoods(_neighborhood); //TODO STEVE for 3d motion model
     _graph->clear();
     _graph->reserve(x * y * _dim3_size);
 
@@ -141,26 +140,6 @@ void AStarAlgorithm<NodeSE2>::createGraph(
         }
       }
     }
-  }
-}
-
-template <typename NodeT>
-void AStarAlgorithm<NodeT>::initNeighborhoods(
-  const int & x_size,
-  const Neighborhood & neighborhood)
-{
-  switch (neighborhood) {
-    case Neighborhood::UNKNOWN:
-      throw std::runtime_error("Unknown neighborhood type selected.");
-    case Neighborhood::VON_NEUMANN:
-      _neighbors_grid_offsets = {-1, +1, -x_size, +x_size};
-      break;
-    case Neighborhood::MOORE:
-      _neighbors_grid_offsets = {-1, +1, -x_size, +x_size, -x_size - 1,
-                                 -x_size + 1, +x_size - 1, +x_size + 1};
-      break;
-    default:
-      throw std::runtime_error("Invalid neighborhood type selected.");
   }
 }
 
@@ -266,6 +245,20 @@ bool AStarAlgorithm<NodeT>::createPath(IndexPath & path, int & iterations, const
   int approach_iterations = 0;
   typename NodeVector::iterator neighbor_iterator;
 
+  // TODO STEVE make sure the return refernce here works
+  // Given an index, return a node ptr reference if its collision-free and valid
+  std::function<bool(const unsigned int&, NodeT*&)> node_validity_checker =
+  [&, this](const unsigned int & index, NodePtr & neighbor) -> bool
+  {
+      neighbor = & _graph->operator[](index);
+      if (neighbor->isNodeValid(_traverse_unknown))
+      {
+        return true;
+      }
+
+      return false;
+  };
+
   while (iterations < getMaxIterations() && !_queue->empty()) {
 
     // 1) Pick Nbest from O s.t. min(f(Nbest)), remove from queue
@@ -299,7 +292,7 @@ bool AStarAlgorithm<NodeT>::createPath(IndexPath & path, int & iterations, const
 
     // 4) Expand neighbors of Nbest not visited
     neighbors.clear();
-    getNeighbors(current_node, neighbors);
+    NodeT::getNeighbors(current_node, node_validity_checker, neighbors);
 
     for (neighbor_iterator = neighbors.begin();
       neighbor_iterator != neighbors.end(); ++neighbor_iterator)
@@ -325,38 +318,6 @@ bool AStarAlgorithm<NodeT>::createPath(IndexPath & path, int & iterations, const
   }
 
   return false;
-}
-
-// Specialized method getNeighbors for 2D nodes
-template <>
-void AStarAlgorithm<Node2D>::getNeighbors(NodePtr & node, NodeVector & neighbors) //TODO STEVE SE3 version
-{
-  // NOTE(stevemacenski): Irritatingly, the order here matters. If you start in free
-  // space and then expand 8-connected, the first set of neighbors will be all cost
-  // _neutral_cost. Then its expansion will all be 2 * _neutral_cost but now multiple
-  // nodes are touching that node so the last cell to update the back pointer wins.
-  // Thusly, the ordering ends with the cardinal directions for both sets such that
-  // behavior is consistent in large free spaces between them.
-  // 100  50   0
-  // 100  50  50
-  // 100 100 100   where lower-middle '100' is visited with same cost by both bottom '50' nodes
-  // Therefore, it is valuable to have some low-potential across the entire map
-  // rather than a small inflation around the obstacles
-  int index;
-  NodePtr neighbor;
-  int node_i = node->getIndex();
-
-  for(unsigned int i = 0; i != _neighbors_grid_offsets.size(); ++i) {
-    index = node_i + _neighbors_grid_offsets[i];
-    if (index > 0)
-    {
-      neighbor = & _graph->operator[](index);
-      if (neighbor->isNodeValid(_traverse_unknown))
-      {
-        neighbors.push_back(neighbor);
-      }
-    }
-  }
 }
 
 template<typename NodeT>

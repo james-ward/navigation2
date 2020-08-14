@@ -161,21 +161,6 @@ private:
   inline void addNode(const float cost, NodePtr & node);
 
   /**
-   * @brief Retrieve all valid neighbors of a node.
-   * @param node Pointer to the node we are currently exploring in A*
-   * @param neighbors Vector of neighbors to be filled
-   */
-  inline void getNeighbors(NodePtr & node, NodeVector & neighbors);
-
-  /**
-   * @brief Initialize the neighborhood to be used in A*
-   * For now we support 4-connect (VON_NEUMANN) and 8-connect (MOORE)
-   * @param x_size The size of the underlying grid
-   * @param neighborhood The desired neighborhood type
-   */
-  inline void initNeighborhoods(const int & x_size, const Neighborhood & neighborhood);
-
-  /**
    * @brief Check if this node is the goal node
    * @param node Node pointer to check if its the goal node
    * @return if node is goal
@@ -257,7 +242,6 @@ private:
   std::unique_ptr<NodeQueue> _queue;
 
   Neighborhood _neighborhood;
-  std::vector<int> _neighbors_grid_offsets;
   NodeHeuristicPair _best_heuristic_node;
 };
 

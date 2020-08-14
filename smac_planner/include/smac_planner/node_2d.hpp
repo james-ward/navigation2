@@ -19,6 +19,7 @@
 #include <iostream>
 #include <queue>
 #include <limits>
+#include <functional>
 
 #include "smac_planner/constants.hpp"
 
@@ -32,6 +33,9 @@ namespace smac_planner
 class Node2D
 {
 public:
+  typedef Node2D * NodePtr;
+  typedef std::unique_ptr<std::vector<Node2D>> Graph;
+  typedef std::vector<NodePtr> NodeVector;
 
   /**
    * @class smac_planner::Node2D::Coordinates
@@ -226,6 +230,67 @@ public:
       goal_coordinates.y - node_coords.y) * neutral_cost;
   }
 
+  /**
+   * @brief Initialize the neighborhood to be used in A*
+   * We support 4-connect (VON_NEUMANN) and 8-connect (MOORE)
+   * @param x_size_uint The total x size to find neighbors
+   * @param neighborhood The desired neighborhood type
+   */
+  static inline void initNeighborhoods(
+    const unsigned int & x_size_uint,
+    const Neighborhood & neighborhood)
+  {
+    int x_size = static_cast<int>(x_size_uint);
+    switch (neighborhood) {
+      case Neighborhood::UNKNOWN:
+        throw std::runtime_error("Unknown neighborhood type selected.");
+      case Neighborhood::VON_NEUMANN:
+        _neighbors_grid_offsets = {-1, +1, -x_size, +x_size};
+        break;
+      case Neighborhood::MOORE:
+        _neighbors_grid_offsets = {-1, +1, -x_size, +x_size, -x_size - 1,
+                                   -x_size + 1, +x_size - 1, +x_size + 1};
+        break;
+      default:
+        throw std::runtime_error("Invalid neighborhood type selected.");
+    }
+  }
+
+  /**
+   * @brief Retrieve all valid neighbors of a node.
+   * @param node Pointer to the node we are currently exploring in A*
+   * @param graph Reference to graph to discover new nodes 
+   * @param neighbors Vector of neighbors to be filled
+   */
+  static inline void getNeighbors(
+    NodePtr & node,
+    std::function<bool(const unsigned int&, smac_planner::Node2D*&)> & validity_checker,
+    NodeVector & neighbors)
+  {
+    // NOTE(stevemacenski): Irritatingly, the order here matters. If you start in free
+    // space and then expand 8-connected, the first set of neighbors will be all cost
+    // _neutral_cost. Then its expansion will all be 2 * _neutral_cost but now multiple
+    // nodes are touching that node so the last cell to update the back pointer wins.
+    // Thusly, the ordering ends with the cardinal directions for both sets such that
+    // behavior is consistent in large free spaces between them.
+    // 100  50   0
+    // 100  50  50
+    // 100 100 100   where lower-middle '100' is visited with same cost by both bottom '50' nodes
+    // Therefore, it is valuable to have some low-potential across the entire map
+    // rather than a small inflation around the obstacles
+    int index;
+    NodePtr neighbor;
+    int node_i = node->getIndex();
+
+    for(unsigned int i = 0; i != _neighbors_grid_offsets.size(); ++i) {
+      index = node_i + _neighbors_grid_offsets[i];
+      if (index > 0 && validity_checker(index, neighbor))
+      {
+        neighbors.push_back(neighbor);
+      }
+    }
+  }
+
   Node2D * parent;
 
 private:
@@ -234,6 +299,7 @@ private:
   unsigned int _index;
   bool _was_visited;
   bool _is_queued;
+  static std::vector<int> _neighbors_grid_offsets;
 };
 
 }  // namespace smac_planner

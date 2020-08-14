@@ -39,7 +39,9 @@ namespace smac_planner
 class NodeSE2
 {
 public:
-
+  typedef NodeSE2 * NodePtr;
+  typedef std::unique_ptr<std::vector<NodeSE2>> Graph;
+  typedef std::vector<NodePtr> NodeVector;
   /**
    * @class smac_planner::NodeSE2::Coordinates
    * @brief NodeSE2 implementation of coordinate structure
@@ -272,6 +274,43 @@ public:
     return hypotf(
       goal_coordinates.x - node_coords.x,
       goal_coordinates.y - node_coords.y) * neutral_cost;
+  }
+
+  /**
+   * @brief Retrieve all valid neighbors of a node.
+   * @param node Pointer to the node we are currently exploring in A*
+   * @param graph Reference to graph to discover new nodes 
+   * @param neighbors Vector of neighbors to be filled
+   */
+  static inline void getNeighbors(
+    NodePtr & node,
+    std::function<bool(const unsigned int&, smac_planner::NodeSE2*&)> & validity_checker,
+    NodeVector & neighbors)
+  {
+    // NOTE(stevemacenski): Irritatingly, the order here matters. If you start in free
+    // space and then expand 8-connected, the first set of neighbors will be all cost
+    // _neutral_cost. Then its expansion will all be 2 * _neutral_cost but now multiple
+    // nodes are touching that node so the last cell to update the back pointer wins.
+    // Thusly, the ordering ends with the cardinal directions for both sets such that
+    // behavior is consistent in large free spaces between them.
+    // 100  50   0
+    // 100  50  50
+    // 100 100 100   where lower-middle '100' is visited with same cost by both bottom '50' nodes
+    // Therefore, it is valuable to have some low-potential across the entire map
+    // rather than a small inflation around the obstacles
+
+    //TODO STEVE implement get neighbors by motion models
+    int index;
+    NodePtr neighbor;
+    int node_i = node->getIndex();
+
+    // for(unsigned int i = 0; i != _neighbors_grid_offsets.size(); ++i) {
+    //   index = node_i + _neighbors_grid_offsets[i];
+    //   if (index > 0 && validity_checker(index, neighbor))
+    //   {
+    //     neighbors.push_back(neighbor);
+    //   }
+    // }
   }
 
   NodeSE2 * parent;
