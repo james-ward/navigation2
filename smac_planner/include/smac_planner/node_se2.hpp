@@ -15,9 +15,13 @@
 #ifndef SMAC_PLANNER__NODE_3D_HPP_
 #define SMAC_PLANNER__NODE_3D_HPP_
 
+#include <math.h>
 #include <vector>
 #include <iostream>
+#include <functional>
 #include <queue>
+#include <memory>
+#include <utility>
 #include <limits>
 
 #include "smac_planner/constants.hpp"
@@ -25,12 +29,49 @@
 namespace smac_planner
 {
 
-// TODO optimization: should we be constructing full SE2 graph at start?
-    // or only construct as we get in contact to expand!
-    // doesnt matter as much for 2D planner, but really will matter here
-    // might speed things up a bit. Reserve graph (full, 20%, whatever) but dont fill in.
+struct Pose
+{
+  Pose() {}
+  Pose(const float x, const float y, const float theta)
+  : _x(x), _y(y), _theta(theta)
+  {}
 
-// TODO make Node3D for XYZ search (3D nav)
+  Pose operator+(const Pose & rhs)
+  {
+    return Pose(rhs._x + _x, rhs._y + _y, rhs._theta + _theta);
+  }
+
+  float _x;
+  float _y;
+  float _theta;
+};
+
+typedef std::vector<Pose> Poses;
+
+// Must forward declare
+class NodeSE2;
+
+struct MotionTable 
+{
+  MotionTable() {};
+
+  void initDublin(
+    unsigned int & size_x_in,
+    unsigned int & angle_quantization_in);
+  void initReedsShepp(
+    unsigned int & size_x_in,
+    unsigned int & angle_quantization_in);
+  void initBalkcomMason(
+    unsigned int & size_x_in,
+    unsigned int & angle_quantization_in);
+
+  Poses getProjections(NodeSE2 * & node);
+  Pose getProjection(NodeSE2 * & node, const unsigned int & motion_index);
+  
+  std::vector<Pose> projections;
+  unsigned int size_x;
+  unsigned int angle_quantization;
+};
 
 /**
  * @class smac_planner::NodeSE2
@@ -61,26 +102,12 @@ public:
    * @param cost_in The costmap cost at this node
    * @param index The index of this node for self-reference
    */
-  explicit NodeSE2(unsigned char & cost_in, const unsigned int index)
-  : parent(nullptr),
-    _cell_cost(static_cast<float>(cost_in)),
-    _accumulated_cost(std::numeric_limits<float>::max()),
-    _index(index),
-    _was_visited(false),
-    _is_queued(false),
-    _x(0.0),
-    _y(0.0),
-    _theta(0.0)
-  {
-  }
+  explicit NodeSE2(unsigned char & cost_in, const unsigned int index);
 
   /**
    * @brief A destructor for smac_planner::NodeSE2
    */
-  ~NodeSE2()
-  {
-    parent = nullptr;
-  }
+  ~NodeSE2();
 
   /**
    * @brief operator== for comparisons
@@ -94,28 +121,11 @@ public:
 
   /**
    * @brief setting continuous coordinate search poses (in partial-cells)
-   * @param X X component of pose
-   * @param Y Y component of pose
-   * @param theta theta component of pose
+   * @param Pose pose
    */
-  inline void setPose(const float & x, const float & y, const float & theta)
+  inline void setPose(const Pose & pose_in)
   {
-    _x = x;
-    _y = y;
-    _theta = theta;
-  }
-
-  /**
-   * @brief getting continuous coordinate search poses (in partial-cells)
-   * @param X X component of pose
-   * @param Y Y component of pose
-   * @param theta theta component of pose
-   */
-  inline void getPose(float & x, float & y, float & theta)
-  {
-    x = _x;
-    y = _y;
-    theta = _theta;
+    pose = pose_in;
   }
 
   /**
@@ -123,15 +133,7 @@ public:
    * @param cost_in The costmap cost at this node
    * @param index The index of this node for self-reference
    */
-  inline void reset(const unsigned char & cost, const unsigned int index)
-  {
-    parent = nullptr;
-    _cell_cost = static_cast<float>(cost);
-    _accumulated_cost = std::numeric_limits<float>::max();
-    _index = index;
-    _was_visited = false;
-    _is_queued = false;
-  }
+  void reset(const unsigned char & cost, const unsigned int index);
 
   /**
    * @brief Gets the accumulated cost at this node
@@ -209,38 +211,7 @@ public:
    * @param traverse_unknown If we can explore unknown nodes on the graph
    * @return whether this node is valid and collision free
    */
-  inline bool isNodeValid(const bool & traverse_unknown) {
-    // NOTE(stevemacenski): Right now, we do not check if the node has wrapped around
-    // the regular grid (e.g. your node is on the edge of the costmap and i+1
-    // goes to the other side). This check would add compute time and my assertion is
-    // that if you do wrap around, the heuristic will be so high it'll be added far
-    // in the queue that it will never be called if a valid path exists.
-    // This is intentionally un-included to increase speed, but be aware. If this causes
-    // trouble, please file a ticket and we can address it then.
-
-    // TODO: replace this check with the footprint checker for non-circular footprints
-      // with pointer to collision checker and pointer to the char costmap rather than storing cost at cell
-
-    // bool free = collision_checker_->isFree(_x, _y, _theta);
-    // if (!free) {
-    //   return traverse_unknown ? free == UNKNOWN : free;    
-    // } else {
-    //   return free;
-    // }
-
-    // occupied node
-    auto & cost = this->getCost();
-    if (cost == OCCUPIED || cost == INSCRIBED) {
-      return false;
-    }
-
-    // unknown node
-    if (cost == UNKNOWN && ! traverse_unknown) {
-      return false;
-    }
-
-    return true;
-  }
+  bool isNodeValid(const bool & traverse_unknown);
 
   static inline unsigned int getIndex(
     const unsigned int & x, const unsigned int & y, const unsigned int & angle,
@@ -265,65 +236,36 @@ public:
    * @param node Node index of new
    * @return Heuristic cost between the nodes
    */
-  static inline float getHeuristicCost(
+  static float getHeuristicCost(
     const Coordinates & node_coords,
-    const Coordinates & goal_coordinates,
-    const float & neutral_cost)
-  {
-    // TODO hueristic based on distance OR cached static table from paper
-    return hypotf(
-      goal_coordinates.x - node_coords.x,
-      goal_coordinates.y - node_coords.y) * neutral_cost;
-  }
+    const Coordinates & goal_coordinates);
+
+  static void initMotionModel(
+    const MotionModel & motion_model,
+    unsigned int & size_x,
+    unsigned int & angle_quantization);
 
   /**
    * @brief Retrieve all valid neighbors of a node.
    * @param node Pointer to the node we are currently exploring in A*
-   * @param graph Reference to graph to discover new nodes 
+   * @param validity_checker Functor for state validity checking 
    * @param neighbors Vector of neighbors to be filled
    */
-  static inline void getNeighbors(
+  static void getNeighbors(
     NodePtr & node,
     std::function<bool(const unsigned int&, smac_planner::NodeSE2*&)> & validity_checker,
-    NodeVector & neighbors)
-  {
-    // NOTE(stevemacenski): Irritatingly, the order here matters. If you start in free
-    // space and then expand 8-connected, the first set of neighbors will be all cost
-    // _neutral_cost. Then its expansion will all be 2 * _neutral_cost but now multiple
-    // nodes are touching that node so the last cell to update the back pointer wins.
-    // Thusly, the ordering ends with the cardinal directions for both sets such that
-    // behavior is consistent in large free spaces between them.
-    // 100  50   0
-    // 100  50  50
-    // 100 100 100   where lower-middle '100' is visited with same cost by both bottom '50' nodes
-    // Therefore, it is valuable to have some low-potential across the entire map
-    // rather than a small inflation around the obstacles
-
-    //TODO STEVE implement get neighbors by motion models
-    int index;
-    NodePtr neighbor;
-    int node_i = node->getIndex();
-
-    // for(unsigned int i = 0; i != _neighbors_grid_offsets.size(); ++i) {
-    //   index = node_i + _neighbors_grid_offsets[i];
-    //   if (index > 0 && validity_checker(index, neighbor))
-    //   {
-    //     neighbors.push_back(neighbor);
-    //   }
-    // }
-  }
+    NodeVector & neighbors);
 
   NodeSE2 * parent;
+  Pose pose;
 
 private:
-  float _cell_cost; // TODO temporary, to be repalced with pointer to collision detector
+  float _cell_cost;
   float _accumulated_cost;
   unsigned int _index;
   bool _was_visited;
   bool _is_queued;
-  float _x;
-  float _y;
-  float _theta;
+  static MotionTable _motion_model;
 };
 
 }  // namespace smac_planner

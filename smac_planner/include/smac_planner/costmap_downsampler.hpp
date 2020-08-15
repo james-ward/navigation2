@@ -19,6 +19,8 @@
 #include "nav2_costmap_2d/costmap_2d_ros.hpp"
 #include "smac_planner/constants.hpp"
 
+// TODO make cpp file for functional bits
+
 namespace smac_planner
 {
 

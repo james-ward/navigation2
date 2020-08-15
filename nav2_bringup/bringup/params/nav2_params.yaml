@@ -262,10 +262,10 @@ planner_server:
       max_on_approach_iterations: 1000  # maximum number of iterations to attempt to reach goal once in tolerance
       smooth_path: true                 # Whether to smooth searched path
       upsample_path: true               # Whether to upsample path after smoothing, recommend off unless controller requires
-      neighborhood_for_search: "MOORE"  # 8 connected
+      motion_model_for_search: "MOORE"  # 8 connected
 
       smoother:
-        sampling_ratio: 4
+        upsampling_ratio: 4
         # smoother weights
         # need to create weights for common resolutions (2.5, 5, 10)
         smoother:

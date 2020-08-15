@@ -17,22 +17,48 @@
 
 namespace smac_planner
 {
-  enum class Neighborhood
+  enum class MotionModel
   {
     UNKNOWN = 0,
     VON_NEUMANN = 1,
-    MOORE = 2
+    MOORE = 2,
+    DUBLIN = 3,
+    REEDS_SHEPP = 4,
+    BALKCOM_MASON = 5,
   };
 
-  inline std::string toString(const Neighborhood & n)
+  inline std::string toString(const MotionModel & n)
   {
     switch (n) {
-      case Neighborhood::VON_NEUMANN:
+      case MotionModel::VON_NEUMANN:
         return "Von Neumann";
-      case Neighborhood::MOORE:
+      case MotionModel::MOORE:
         return "Moore";
+      case MotionModel::DUBLIN:
+        return "Dublin";
+      case MotionModel::REEDS_SHEPP:
+        return "Reeds-Shepp";
+      case MotionModel::BALKCOM_MASON:
+        return "Balkcom-Mason";
       default:
         return "Unknown";
+    }
+  }
+
+  inline MotionModel fromString(const std::string & n)
+  {
+    if (n == "VON_NEUMANN") {
+      return MotionModel::VON_NEUMANN;
+    } else if (n == "MOORE") {
+      return MotionModel::MOORE;
+    } else if (n == "DUBLIN") {
+      return MotionModel::DUBLIN;
+    } else if (n == "REEDS_SHEPP") {
+      return MotionModel::REEDS_SHEPP;
+    } else if (n == "BALKCOM_MASON") {
+      return MotionModel::BALKCOM_MASON;
+    } else {
+      return MotionModel::UNKNOWN; 
     }
   }
 

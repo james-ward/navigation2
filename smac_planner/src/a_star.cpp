@@ -21,11 +21,20 @@
 
 #include "smac_planner/a_star.hpp"
 
+// TODO optimization: should we be constructing full SE2 graph at start?
+    // or only construct as we get in contact to expand!
+    // doesnt matter as much for 2D planner, but really will matter here
+    // might speed things up a bit. Reserve graph (full, 20%, whatever) but dont fill in.
+
+// TODO make Node3D for XYZ search (3D nav)
+
+// TODO set nav2_package() in cmakelists
+
 namespace smac_planner
 {
 
 template<typename NodeT>
-AStarAlgorithm<NodeT>::AStarAlgorithm(const Neighborhood & neighborhood)
+AStarAlgorithm<NodeT>::AStarAlgorithm(const MotionModel & motion_model)
 : _travel_cost_scale(0.0),
   _neutral_cost(0.0),
   _traverse_unknown(true),
@@ -37,7 +46,7 @@ AStarAlgorithm<NodeT>::AStarAlgorithm(const Neighborhood & neighborhood)
   _goal(nullptr),
   _graph(nullptr),
   _queue(nullptr),
-  _neighborhood(neighborhood)
+  _motion_model(motion_model)
 {
 }
 
@@ -90,7 +99,7 @@ void AStarAlgorithm<Node2D>::createGraph(
   if (getSizeX() != x || getSizeY() != y) {
     _x_size = x;
     _y_size = y;
-    Node2D::initNeighborhoods(_x_size, _neighborhood);
+    Node2D::initNeighborhood(_x_size, _motion_model);
     _graph->clear();
     _graph->reserve(x * y);
     for (unsigned int i = 0; i != x * y; i++) {
@@ -116,7 +125,7 @@ void AStarAlgorithm<NodeSE2>::createGraph(
   if (getSizeX() != x || getSizeY() != y) {
     _x_size = x;
     _y_size = y;
-    //initNeighborhoods(_neighborhood); //TODO STEVE for 3d motion model
+    NodeSE2::initMotionModel(_motion_model, _x_size, _dim3_size);
     _graph->clear();
     _graph->reserve(x * y * _dim3_size);
 
@@ -164,6 +173,7 @@ void AStarAlgorithm<NodeSE2>::setStart(
 {
   unsigned int index = NodeSE2::getIndex(mx, my, theta, getSizeX(), getSizeDim3());
   _start = & _graph->operator[](index);
+  _start->setPose(Pose(mx, my, theta));
 }
 
 template <>
@@ -369,6 +379,8 @@ void AStarAlgorithm<NodeT>::addNode(const float cost, NodePtr & node)
   _queue->emplace(cost, node);
 }
 
+// TODO does this need to change for SE3 Node? Perhaps be footprint cost now?
+// Might need a new NodeT::getTravelCost() so each can have their own to get cost
 template<typename NodeT>
 float AStarAlgorithm<NodeT>::getTraversalCost(
   NodePtr & current_node,
@@ -386,7 +398,7 @@ float AStarAlgorithm<NodeT>::getHeuristicCost(const NodePtr & node)
 {
   Coordinates node_coords = NodeT::getCoords(node->getIndex(), getSizeX(), getSizeDim3());
   float heuristic = NodeT::getHeuristicCost(
-    node_coords, _goal_coordinates, _neutral_cost);
+    node_coords, _goal_coordinates) * _neutral_cost;
   
   // If we're far from goal, we want to ensure we can speed it along
   if (heuristic > getToleranceHeuristic()) {

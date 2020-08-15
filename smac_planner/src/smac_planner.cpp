@@ -110,7 +110,7 @@ void SmacPlanner::configure(
   float travel_cost_scale;
   bool smooth_path;
   bool upsample_path;
-  std::string neighborhood_for_search;
+  std::string motion_model_for_search;
 
   // General planner params
   //TODO STEVE number of quantized bins angle
@@ -146,19 +146,14 @@ void SmacPlanner::configure(
   _node->get_parameter(name + ".smoother.upsampling_ratio", _upsampling_ratio);
 
   nav2_util::declare_parameter_if_not_declared(
-    _node, name + ".neighborhood_for_search", rclcpp::ParameterValue(std::string("MOORE")));
-  _node->get_parameter(name + ".neighborhood_for_search", neighborhood_for_search);
-  Neighborhood neighborhood;
-  if (neighborhood_for_search == std::string("MOORE")) {
-    neighborhood = Neighborhood::MOORE;
-  } else if (neighborhood_for_search == std::string("VON_NEUMANN")) {
-    neighborhood = Neighborhood::VON_NEUMANN;
-  } else {
-    neighborhood = Neighborhood::MOORE;
+    _node, name + ".motion_model_for_search", rclcpp::ParameterValue(std::string("MOORE")));
+  _node->get_parameter(name + ".motion_model_for_search", motion_model_for_search);
+  MotionModel motion_model = fromString(motion_model_for_search);
+  if (motion_model == MotionModel::UNKNOWN) {
     RCLCPP_WARN(_node->get_logger(),
-      "Unable to get Neighborhood search type. Given '%s', "
-      "valid options are MOORE and VON_NEUMANN. Using MOORE as default",
-      neighborhood_for_search.c_str());
+      "Unable to get MotionModel search type. Given '%s', "
+      "valid options are MOORE, VON_NEUMANN, DUBLIN, REEDS_SHEPP, BALKCOM_MASON.",
+      motion_model_for_search.c_str());
   }
 
   if (max_on_approach_iterations <= 0) {
@@ -184,7 +179,7 @@ void SmacPlanner::configure(
     _upsampling_ratio = 2;
   }
 
-  _a_star = std::make_unique<AStarAlgorithm<Node2D>>(neighborhood);
+  _a_star = std::make_unique<AStarAlgorithm<Node2D>>(motion_model);
   _a_star->initialize(
     travel_cost_scale,
     allow_unknown,
@@ -217,10 +212,10 @@ void SmacPlanner::configure(
   RCLCPP_INFO(
     _node->get_logger(), "Configured plugin %s of type SmacPlanner with "
     "travel cost %.2f, tolerance %.2f, maximum iterations %i, "
-    "max on approach iterations %i, and %s. Using neighorhood: %s.",
+    "max on approach iterations %i, and %s. Using motion model: %s.",
     _name.c_str(), travel_cost_scale, _tolerance, max_iterations, max_on_approach_iterations,
     allow_unknown ? "allowing unknown traversal" : "not allowing unknown traversal",
-    toString(neighborhood).c_str());
+    toString(motion_model).c_str());
 }
 
 void SmacPlanner::activate()

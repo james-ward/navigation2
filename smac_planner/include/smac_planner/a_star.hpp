@@ -25,7 +25,6 @@
 #include "smac_planner/node_2d.hpp"
 #include "smac_planner/node_se2.hpp"
 #include "smac_planner/types.hpp"
-#include "smac_planner/constants.hpp"
 
 namespace smac_planner
 {
@@ -58,7 +57,7 @@ public:
    * @brief A constructor for smac_planner::PlannerServer
    * @param neighborhood The type of neighborhood to use for search (4 or 8 connected)
    */
-  explicit AStarAlgorithm(const Neighborhood & neighborhood);
+  explicit AStarAlgorithm(const MotionModel & motion_model);
 
   /**
    * @brief A destructor for smac_planner::AStarAlgorithm
@@ -241,7 +240,7 @@ private:
   std::unique_ptr<Graph> _graph;
   std::unique_ptr<NodeQueue> _queue;
 
-  Neighborhood _neighborhood;
+  MotionModel _motion_model;
   NodeHeuristicPair _best_heuristic_node;
 };
 
