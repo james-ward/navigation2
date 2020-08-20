@@ -53,6 +53,7 @@ add_library(${library_name} SHARED
   src/a_star.cpp
   src/smac_planner.cpp
   src/node_se2.cpp
+  src/costmap_downsampler.cpp
   src/node_2d.cpp
 )
 
