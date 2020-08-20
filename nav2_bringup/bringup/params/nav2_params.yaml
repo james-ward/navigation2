@@ -261,8 +261,9 @@ planner_server:
       max_iterations: -1                # maximum total iterations to search for before returning
       max_on_approach_iterations: 1000  # maximum number of iterations to attempt to reach goal once in tolerance
       smooth_path: true                 # Whether to smooth searched path
-      upsample_path: true               # Whether to upsample path after smoothing, recommend off unless controller requires
-      motion_model_for_search: "MOORE"  # 8 connected
+      upsample_path: false              # Whether to upsample path after smoothing, recommend off unless controller requires
+      motion_model_for_search: "DUBIN"  # 8 connected
+      angle_quantization_bins: 8        # Number of angle bins for search, must be 1 for 2D node (no angle search)
 
       smoother:
         upsampling_ratio: 4

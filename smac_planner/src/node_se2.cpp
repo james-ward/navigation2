@@ -20,19 +20,30 @@ namespace smac_planner
 // defining static member for all instance to share
 MotionTable NodeSE2::_motion_model;
 
-void MotionTable::initDublin(
+// Each of these tables are the projected motion models through
+// time and space applied to the search on the current node in
+// continuous map-coordinates (e.g. not meters but partial map cells)
+// Currently, these are set to project *at minimum* into a neighboring
+// cell. Though this could be later modified to project a certain
+// amount of time or particular distance forward.
+
+// http://planning.cs.uiuc.edu/node821.html
+void MotionTable::initDubin(
   unsigned int & size_x_in,
-  unsigned int & angle_quantization_in) //TODO
+  unsigned int & angle_quantization_in)
 {
   size_x = size_x_in;
   angle_quantization = angle_quantization_in;
   projections.clear();
-  projections.reserve(3);
-  projections.emplace_back(0, 0.7068582, 0.0415893);
-  projections.emplace_back(-0.0415893, 0.705224, 0.1178097);
-  projections.emplace_back(0.0415893, 0.705224, -0.1178097);
+  projections.reserve(3);//TODO
+  projections.emplace_back(1.0, 0.0, 0.0);  // Forward   
+  projections.emplace_back(0.0, 1.0, 0.0);  // Forward   
+  projections.emplace_back(0.0, -1.0, 0.0);  // Forward   
+  // projections.emplace_back(???, ???, angle_quantization_in);  // Left by 1 angular bin
+  // projections.emplace_back(???, -???, -angle_quantization_in);  // Right by 1 angular bin
 }
 
+// http://planning.cs.uiuc.edu/node822.html
 void MotionTable::initReedsShepp(
   unsigned int & size_x_in,
   unsigned int & angle_quantization_in) //TODO
@@ -40,12 +51,10 @@ void MotionTable::initReedsShepp(
   size_x = size_x_in;
   angle_quantization = angle_quantization_in;
   projections.clear();
-  projections.reserve(3);
-  projections.emplace_back(0, 0.7068582, 0.0415893);
-  projections.emplace_back(-0.0415893, 0.705224, 0.1178097);
-  projections.emplace_back(0.0415893, 0.705224, -0.1178097);
+  projections.reserve(6);
 }
 
+// http://planning.cs.uiuc.edu/node823.html
 void MotionTable::initBalkcomMason(
   unsigned int & size_x_in,
   unsigned int & angle_quantization_in) //TODO
@@ -53,20 +62,17 @@ void MotionTable::initBalkcomMason(
   size_x = size_x_in;
   angle_quantization = angle_quantization_in;
   projections.clear();
-  projections.reserve(3);
-  projections.emplace_back(0, 0.7068582, 0.0415893);
-  projections.emplace_back(-0.0415893, 0.705224, 0.1178097);
-  projections.emplace_back(0.0415893, 0.705224, -0.1178097);
+  projections.reserve(6);
 }
 
 Poses MotionTable::getProjections(NodeSE2 * & node)
 {
-  Poses projections;
+  Poses projection_list;
   for (uint i = 0; i != projections.size(); i++) {
-    projections.push_back(getProjection(node, i));
+    projection_list.push_back(getProjection(node, i));
   }
 
-  return projections;
+  return projection_list;
 }
 
 Pose MotionTable::getProjection(NodeSE2 * & node, const unsigned int & motion_index)
@@ -138,8 +144,8 @@ void NodeSE2::initMotionModel(
 {
   // find the motion model selected
   switch(motion_model) {
-    case MotionModel::DUBLIN:
-      _motion_model.initDublin(size_x, angle_quantization);
+    case MotionModel::DUBIN:
+      _motion_model.initDubin(size_x, angle_quantization);
       break;
     case MotionModel::REEDS_SHEPP:
       _motion_model.initReedsShepp(size_x, angle_quantization);
@@ -149,7 +155,7 @@ void NodeSE2::initMotionModel(
       break;
     default:
       throw std::runtime_error("Invalid motion model for SE2 node. Please select between"
-        " Dublin (Ackermann forward only),"
+        " Dubin (Ackermann forward only),"
         " Reeds-Shepp (Ackermann forward and back),"
         " or Balkcom-Mason (Differential drive and omnidirectional) models.");
   }
@@ -161,7 +167,7 @@ void NodeSE2::getNeighbors(
   NodeVector & neighbors)
 {
   int index;
-  NodePtr neighbor;
+  NodePtr neighbor = nullptr;
   Poses projections = _motion_model.getProjections(node);
 
   for(unsigned int i = 0; i != projections.size(); ++i) {

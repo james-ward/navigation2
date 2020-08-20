@@ -55,7 +55,7 @@ struct MotionTable
 {
   MotionTable() {};
 
-  void initDublin(
+  void initDubin(
     unsigned int & size_x_in,
     unsigned int & angle_quantization_in);
   void initReedsShepp(

@@ -30,6 +30,7 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "nav2_util/lifecycle_node.hpp"
 #include "nav2_util/node_utils.hpp"
+#include "tf2/utils.h"
 
 namespace smac_planner
 {
@@ -85,13 +86,23 @@ public:
     const geometry_msgs::msg::PoseStamped & goal) override;
 
   /**
+   * @brief Create an Eigen Vector2D of world poses from continuous map coords
+   * @param mx float of map X coordinate
+   * @param my float of map Y coordinate
+   * @param costmap Costmap pointer
+   * @return Eigen::Vector2d eigen vector of the generated path
+   */
+  Eigen::Vector2d getWorldCoords(
+    const float & mx, const float & my, const nav2_costmap_2d::Costmap2D * costmap);
+
+  /**
    * @brief Remove hooking at end of paths
    * @param path Path to remove hooking from
    */
   void removeHook(std::vector<Eigen::Vector2d> & path);
 
 protected:
-  std::unique_ptr<AStarAlgorithm<Node2D>> _a_star;
+  std::unique_ptr<AStarAlgorithm<NodeSE2>> _a_star;
   std::unique_ptr<Smoother> _smoother;
   std::unique_ptr<Upsampler> _upsampler;
   std::unique_ptr<CostmapDownsampler> _costmap_downsampler;
@@ -100,11 +111,11 @@ protected:
   std::string _global_frame, _name;
   float _tolerance;
   int _downsampling_factor;
+  int _angle_quantizations;
+  double _angle_bin_size;
   bool _downsample_costmap;
   rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>::SharedPtr _raw_plan_publisher;
-  rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>::SharedPtr _smoother_debug1_pub;
-  rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>::SharedPtr _smoother_debug2_pub;
-  rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>::SharedPtr _smoother_debug3_pub;
+  rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>::SharedPtr _smoothed_plan_publisher;
   SmootherParams _smoother_params;
   OptimizerParams _optimizer_params;
   int _upsampling_ratio;

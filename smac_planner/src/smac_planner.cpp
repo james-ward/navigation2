@@ -35,7 +35,7 @@
 //  - Identified 3 math errors of Thrun
 //  - show and explain derivations on smoother / upsampler. Show and explain hybrid stuff
 // Lets look at what we ahve here:
-//   We have A* path smoothed to kinematic paramrters. Even without explicit modelling of ackermann or limited curvature kinematics, you can get it here. In fact, while a little hand wavey, if you plan in a full potential field with default settings, it steers intentionally in the center of spaces. If that space is built for a robot or vehicle (eg road, or aisle, or open space, or office) then you’re pseduo-promised that the curvature can be valid for your vehicle. Now the then the boundry conditions (initial and final state) are not. For alot of cases thats sufficient bc of an intelligent local planner based on dublin curves or something, but if not, we have a full hybrid A* as well. 
+//   We have A* path smoothed to kinematic paramrters. Even without explicit modelling of ackermann or limited curvature kinematics, you can get it here. In fact, while a little hand wavey, if you plan in a full potential field with default settings, it steers intentionally in the center of spaces. If that space is built for a robot or vehicle (eg road, or aisle, or open space, or office) then you’re pseduo-promised that the curvature can be valid for your vehicle. Now the then the boundry conditions (initial and final state) are not. For alot of cases thats sufficient bc of an intelligent local planner based on dubin curves or something, but if not, we have a full hybrid A* as well. 
 //   Ex of robot to limit curvature: industrial for max speed without dumping load, ackermann, legged to prop forward to minimize slow down for off acis motion, diff to not whip around
 //  Show path, no map -- Show term smoothing, lovely, no map -- Then map, welp, thats useless
 
@@ -46,7 +46,7 @@
 
 // NOTES 
 // way to do collision checking on oriented footprint https://github.com/windelbouwman/move-base-ompl/blob/master/src/ompl_global_planner.cpp#L133 (but doesnt cache)
-// https://github.com/ompl/ompl/blob/master/demos/GeometricCarPlanning.cpp for reeds/dublin hybrid. There's also a 2D point to point demo that could be helpful.
+// https://github.com/ompl/ompl/blob/master/demos/GeometricCarPlanning.cpp for reeds/dubin hybrid. There's also a 2D point to point demo that could be helpful.
 // optimization flags -03
 
 // In fact, I use that smoother in the A* implementation to make it "smooth" so its not grid-blocky. 
@@ -54,6 +54,10 @@
 // People are used to these smooth paths from Navigation Function approaches and I'm not sure anyone would be 
 // happy if I just gave them a A* without it. Its stil quite fast but its much faster than NavFn without the smoother. 
 // If you have a half decent controller though, its largely unneeded (I tested, its fine, its just not visually appealing).
+
+
+// TODO seperate createPlan into a few functions
+// TODO second smac planner for 2D only (change Node2D API as needed (start/goal/createGraph/)) 
 
 #include <string>
 #include <memory>
@@ -113,7 +117,6 @@ void SmacPlanner::configure(
   std::string motion_model_for_search;
 
   // General planner params
-  //TODO STEVE number of quantized bins angle
   nav2_util::declare_parameter_if_not_declared(
     _node, name + ".tolerance", rclcpp::ParameterValue(0.125));
   _tolerance = static_cast<float>(_node->get_parameter(name + ".tolerance").as_double());
@@ -123,11 +126,17 @@ void SmacPlanner::configure(
   nav2_util::declare_parameter_if_not_declared(
           _node, name + ".downsampling_factor", rclcpp::ParameterValue(1));
   _node->get_parameter(name + ".downsampling_factor", _downsampling_factor);
+  
+  nav2_util::declare_parameter_if_not_declared(
+          _node, name + ".angle_quantization_bins", rclcpp::ParameterValue(1));
+  _node->get_parameter(name + ".angle_quantization_bins", _angle_quantizations);
+  _angle_bin_size = 2.0 * M_PI / _angle_quantizations;
+
   nav2_util::declare_parameter_if_not_declared(
     _node, name + ".allow_unknown", rclcpp::ParameterValue(true));
   _node->get_parameter(name + ".allow_unknown", allow_unknown);
   nav2_util::declare_parameter_if_not_declared(
-    _node, name + ".max_iterations", rclcpp::ParameterValue(-1)); /*TODO set reasoanble number, also, per request depending on length?*/
+    _node, name + ".max_iterations", rclcpp::ParameterValue(-1));
   _node->get_parameter(name + ".max_iterations", max_iterations);
   nav2_util::declare_parameter_if_not_declared(
     _node, name + ".travel_cost_scale", rclcpp::ParameterValue(0.8));
@@ -152,7 +161,7 @@ void SmacPlanner::configure(
   if (motion_model == MotionModel::UNKNOWN) {
     RCLCPP_WARN(_node->get_logger(),
       "Unable to get MotionModel search type. Given '%s', "
-      "valid options are MOORE, VON_NEUMANN, DUBLIN, REEDS_SHEPP, BALKCOM_MASON.",
+      "valid options are MOORE, VON_NEUMANN, DUBIN, REEDS_SHEPP, BALKCOM_MASON.",
       motion_model_for_search.c_str());
   }
 
@@ -179,7 +188,7 @@ void SmacPlanner::configure(
     _upsampling_ratio = 2;
   }
 
-  _a_star = std::make_unique<AStarAlgorithm<Node2D>>(motion_model);
+  _a_star = std::make_unique<AStarAlgorithm<NodeSE2>>(motion_model);
   _a_star->initialize(
     travel_cost_scale,
     allow_unknown,
@@ -188,7 +197,7 @@ void SmacPlanner::configure(
 
   if (smooth_path) {
     _smoother = std::make_unique<Smoother>();
-    _optimizer_params.get(_node.get(), name);  // Get optimizer params        // TODO per-run with time left over
+    _optimizer_params.get(_node.get(), name);  // Get optimizer params TODO per-run with time left over
     _smoother_params.get(_node.get(), name);  // Get weights
     _smoother->initialize(_optimizer_params);
 
@@ -205,9 +214,7 @@ void SmacPlanner::configure(
   }
 
   _raw_plan_publisher = _node->create_publisher<nav_msgs::msg::Path>("unsmoothed_plan", 1);
-  _smoother_debug1_pub= _node->create_publisher<nav_msgs::msg::Path>("debug1", 1);
-  _smoother_debug2_pub= _node->create_publisher<nav_msgs::msg::Path>("debug2", 1);
-  _smoother_debug3_pub= _node->create_publisher<nav_msgs::msg::Path>("debug3", 1);
+  _smoothed_plan_publisher = _node->create_publisher<nav_msgs::msg::Path>("smoothed_plan", 1);
 
   RCLCPP_INFO(
     _node->get_logger(), "Configured plugin %s of type SmacPlanner with "
@@ -224,9 +231,7 @@ void SmacPlanner::activate()
     _node->get_logger(), "Activating plugin %s of type SmacPlanner",
     _name.c_str());
   _raw_plan_publisher->on_activate();
-  _smoother_debug1_pub->on_activate();
-  _smoother_debug2_pub->on_activate();
-  _smoother_debug3_pub->on_activate();
+  _smoothed_plan_publisher->on_activate();
   if (_costmap_downsampler) {
     _costmap_downsampler->activatePublisher();
   }
@@ -238,6 +243,7 @@ void SmacPlanner::deactivate()
     _node->get_logger(), "Deactivating plugin %s of type SmacPlanner",
     _name.c_str());
   _raw_plan_publisher->on_deactivate();
+  _smoothed_plan_publisher->on_deactivate();
   if (_costmap_downsampler) {
     _costmap_downsampler->deactivatePublisher();
   }
@@ -253,6 +259,7 @@ void SmacPlanner::cleanup()
   _upsampler.reset();
   _costmap_downsampler.reset();
   _raw_plan_publisher.reset();
+  _smoothed_plan_publisher.reset();
 }
 
 nav_msgs::msg::Path SmacPlanner::createPlan(
@@ -276,18 +283,20 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
   _a_star->createGraph(
     costmap->getSizeInCellsX(),
     costmap->getSizeInCellsY(),
-    1, //TODO STEVE number of quanitized states, for SE2
+    _angle_quantizations,
     char_costmap);
 
   // Set starting point
   unsigned int mx, my, index;
   costmap->worldToMap(start.pose.position.x, start.pose.position.y, mx, my);
-  _a_star->setStart(mx, my, 0);//TODO STEVE angle bin, in bin coords NOT global coords, for SE2
+  double orientation = tf2::getYaw(start.pose.orientation);
+  _a_star->setStart(mx, my, 0);//static_cast<unsigned int>(orientation / _angle_bin_size));
 
   // Set goal point
   costmap->worldToMap(goal.pose.position.x, goal.pose.position.y, mx, my);
   index = costmap->getIndex(mx, my);
-  _a_star->setGoal(mx, my, 0);//TODO STEVE angle bin, in bin coords NOT global coords, for SE2
+  orientation = tf2::getYaw(start.pose.orientation);
+  _a_star->setGoal(mx, my, 0);//static_cast<unsigned int>(orientation / _angle_bin_size));
 
   // Setup message
   nav_msgs::msg::Path plan;
@@ -339,13 +348,10 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
     if (_smoother && i % downsample_ratio != 0) {
       continue;
     }
-    unsigned int index_x, index_y;
-    double world_x, world_y;
-    costmap->indexToCells(path[i], index_x, index_y);
-    costmap->mapToWorld(index_x, index_y, world_x, world_y);
-    path_world.push_back(Eigen::Vector2d(world_x, world_y));
-    pose.pose.position.x = world_x;
-    pose.pose.position.y = world_y;
+
+    path_world.push_back(getWorldCoords(path[i].first, path[i].second, costmap));
+    pose.pose.position.x = path_world.back().x();
+    pose.pose.position.y = path_world.back().y();
     plan.poses.push_back(pose);
   }
 
@@ -369,18 +375,19 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
 
     removeHook(path_world);
 
-///////////////////////////////// DEBUG/////////////////////////////////
-    for (int i = 0; i != path_world.size(); i++) {
-      pose.pose.position.x = path_world[i][0];
-      pose.pose.position.y = path_world[i][1];
-      plan.poses[i] = pose;
+    // Publish smoothed path for debug
+    if (_node->count_subscribers(_smoothed_plan_publisher->get_topic_name()) > 0) {
+      for (int i = 0; i != path_world.size(); i++) {
+        pose.pose.position.x = path_world[i][0];
+        pose.pose.position.y = path_world[i][1];
+        plan.poses[i] = pose;
+      }
+      _smoothed_plan_publisher->publish(plan);
     }
-    _smoother_debug1_pub->publish(plan);
-///////////////////////////////// DEBUG/////////////////////////////////
 
     // Upsample path
     if (_upsampler) {
-      if(!_upsampler->upsample(path_world, _smoother_params, 2))  // TODO _sampling_ratio
+      if(!_upsampler->upsample(path_world, _smoother_params, _upsampling_ratio))
       {
         RCLCPP_WARN(
           _node->get_logger(),
@@ -393,69 +400,6 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
   } else {
     return plan;
   }
-
-///////////////////////////////// DEBUG/////////////////////////////////
-
-  // // move back below to do multiple runs testing
-  // std::vector<Eigen::Vector2d> path_world_debug1 = path_world;
-  // std::vector<Eigen::Vector2d> path_world_debug2 = path_world;
-
-
-  // if (path_world_debug1.size() > 5) {
-  //   SmootherParams params(15000.0 /*smooth*/, 0.0  /*cost*/, 300.0 /*dist*/, 30.0 /*curve*/, 4.0 /*max curve*/, 10.0 /*costmap factor*/);
-  //   _smoother->smooth(path_world_debug1, & mcmap, params);
-  // }
-  //   if (path_world_debug1.size() > 3) {
-  //     Eigen::Vector2d interpolated_second_to_last_point;
-  //     interpolated_second_to_last_point = (path_world_debug1.end()[-3] + path_world_debug1.end()[-1]) / 2.0;
-
-  //     if (
-  //       squaredDistance(path_world_debug1.end()[-2], path_world_debug1.end()[-1]) >
-  //       squaredDistance(interpolated_second_to_last_point, path_world_debug1.end()[-1])) {
-  //       path_world_debug1.end()[-2] = interpolated_second_to_last_point;
-  //     }
-  //   }
-
-  // for (int i = 0; i != path_world_debug1.size(); i++) {
-  //   pose.pose.position.x = path_world_debug1[i][0];
-  //   pose.pose.position.y = path_world_debug1[i][1];
-  //   plan.poses[i] = pose;
-  // }
-  // smoother_debug1_pub_->publish(plan);
-
-  // if (path_world_debug2.size() > 5) {
-  //   SmootherParams params(15000.0 /*smooth*/, 0.007 /*cost*/, 50.0 /*dist*/, 30.0 /*curve*/, 4.0 /*max curve*/, 10.0 /*costmap factor*/);
-  //   _smoother->smooth(path_world_debug2, & mcmap, params);
-  // }
-  //   if (path_world_debug2.size() > 3) {
-  //     Eigen::Vector2d interpolated_second_to_last_point;
-  //     interpolated_second_to_last_point = (path_world_debug2.end()[-3] + path_world_debug2.end()[-1]) / 2.0;
-
-  //     if (squaredDistance(path_world_debug2.end()[-2], path_world_debug2.end()[-1]) > squaredDistance(interpolated_second_to_last_point, path_world_debug2.end()[-1])) {
-  //       path_world_debug2.end()[-2] = interpolated_second_to_last_point;
-  //     }
-  //   }
-  // for (int i = 0; i != path_world_debug2.size(); i++) {
-  //   pose.pose.position.x = path_world_debug2[i][0];
-  //   pose.pose.position.y = path_world_debug2[i][1];
-  //   plan.poses[i] = pose;
-  // }
-  // smoother_debug2_pub_->publish(plan);
-
-  // // second stage a second time
-  // if (path_world_debug2.size() > 5) {
-  //   SmootherParams params(15000.0 /*smooth*/, 0.007 /*cost*/, 50.0 /*dist*/, 30.0 /*curve*/, 4.0 /*max curve*/, 10.0 /*costmap factor*/);
-  //   _smoother->smooth(path_world_debug2, & mcmap, params);
-  // }
-
-  // for (int i = 0; i != path_world_debug2.size(); i++) {
-  //   pose.pose.position.x = path_world_debug2[i][0];
-  //   pose.pose.position.y = path_world_debug2[i][1];
-  //   plan.poses[i] = pose;
-  // }
-
-  // smoother_debug3_pub_->publish(plan);
-//////////////////////////////// DEBUG/////////////////////////////////
 
   for (int i = 0; i != plan.poses.size(); i++) {
     pose.pose.position.x = path_world[i][0];
@@ -484,6 +428,16 @@ void SmacPlanner::removeHook(std::vector<Eigen::Vector2d> & path)
   {
     path.end()[-2] = interpolated_second_to_last_point;
   }
+}
+
+Eigen::Vector2d getWorldCoords(
+  const float & mx, const float & my, const nav2_costmap_2d::Costmap2D * costmap)
+{
+  float world_x = 
+    static_cast<float>(costmap->getOriginX()) + (mx + 0.5) * costmap->getResolution();
+  float world_y =
+    static_cast<float>(costmap->getOriginY()) + (my + 0.5) * costmap->getResolution();
+  return Eigen::Vector2d(world_x, world_y);
 }
 
 }  // namespace smac_planner

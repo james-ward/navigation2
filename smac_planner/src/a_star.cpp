@@ -26,9 +26,9 @@
     // doesnt matter as much for 2D planner, but really will matter here
     // might speed things up a bit. Reserve graph (full, 20%, whatever) but dont fill in.
 
-// TODO make Node3D for XYZ search (3D nav)
-
 // TODO set nav2_package() in cmakelists
+
+// TODO Pose, IndexPath, Coordinate homologation, Eigen::vector2d seems like alot of the same crap
 
 namespace smac_planner
 {
@@ -130,7 +130,7 @@ void AStarAlgorithm<NodeSE2>::createGraph(
     _graph->reserve(x * y * _dim3_size);
 
     for (unsigned int i = 0; i != x; i++) {
-      for (unsigned int j = 0; i != y; j++) {
+      for (unsigned int j = 0; j != y; j++) {
         for (unsigned int k = 0; k != _dim3_size; k++) {
           _graph->emplace_back(
             costs[i * j],
@@ -140,7 +140,7 @@ void AStarAlgorithm<NodeSE2>::createGraph(
     }
   } else {
     for (unsigned int i = 0; i != x; i++) {
-      for (unsigned int j = 0; i != y; j++) {
+      for (unsigned int j = 0; j != y; j++) {
         for (unsigned int k = 0; k != _dim3_size; k++) {
           // Optimization: operator[] is used over at() for performance (no bound checking)
           _graph->operator[](i).reset(
@@ -255,7 +255,6 @@ bool AStarAlgorithm<NodeT>::createPath(IndexPath & path, int & iterations, const
   int approach_iterations = 0;
   typename NodeVector::iterator neighbor_iterator;
 
-  // TODO STEVE make sure the return refernce here works
   // Given an index, return a node ptr reference if its collision-free and valid
   std::function<bool(const unsigned int&, NodeT*&)> node_validity_checker =
   [&, this](const unsigned int & index, NodePtr & neighbor) -> bool
@@ -299,6 +298,7 @@ bool AStarAlgorithm<NodeT>::createPath(IndexPath & path, int & iterations, const
         return backtracePath(node, path);
       }
     }
+    // TODO STEVE removed for Hybrid testing
 
     // 4) Expand neighbors of Nbest not visited
     neighbors.clear();
@@ -336,8 +336,8 @@ bool AStarAlgorithm<NodeT>::isGoal(NodePtr & node)
   return node == getGoal();
 }
 
-template<typename NodeT>
-bool AStarAlgorithm<NodeT>::backtracePath(NodePtr & node, IndexPath & path)
+template <>
+bool AStarAlgorithm<Node2D>::backtracePath(NodePtr & node, IndexPath & path)
 {
   if (!node->parent) {
     return false;
@@ -346,7 +346,29 @@ bool AStarAlgorithm<NodeT>::backtracePath(NodePtr & node, IndexPath & path)
   NodePtr current_node = node;
 
   while (current_node->parent) {
-    path.push_back(current_node->getIndex());
+    Node2D::Coordinates coords = Node2D::getCoords(
+      current_node->getIndex(), getSizeX(), getSizeDim3());
+    path.emplace_back(
+      static_cast<float>(coords.x), static_cast<float>(coords.y));
+    current_node = current_node->parent;
+  }
+
+  return path.size() > 1;
+}
+
+template <>
+bool AStarAlgorithm<NodeSE2>::backtracePath(NodePtr & node, IndexPath & path)
+{
+  if (!node->parent) {
+    return false;
+  }
+
+  NodePtr current_node = node;
+
+  // TODO(stevemacenski): return orientation (important?)
+  while (current_node->parent) {
+    const Pose node_continuous_pose = current_node->pose;
+    path.push_back({node_continuous_pose._x, node_continuous_pose._y});
     current_node = current_node->parent;
   }
 
@@ -381,6 +403,8 @@ void AStarAlgorithm<NodeT>::addNode(const float cost, NodePtr & node)
 
 // TODO does this need to change for SE3 Node? Perhaps be footprint cost now?
 // Might need a new NodeT::getTravelCost() so each can have their own to get cost
+// TODO g cost include change direction + forward / back penalties.
+// https://github.com/karlkurzer/path_planner/blob/master/src/node3d.cpp#L73-L102
 template<typename NodeT>
 float AStarAlgorithm<NodeT>::getTraversalCost(
   NodePtr & current_node,

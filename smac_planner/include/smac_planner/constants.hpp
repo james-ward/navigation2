@@ -22,7 +22,7 @@ namespace smac_planner
     UNKNOWN = 0,
     VON_NEUMANN = 1,
     MOORE = 2,
-    DUBLIN = 3,
+    DUBIN = 3,
     REEDS_SHEPP = 4,
     BALKCOM_MASON = 5,
   };
@@ -34,8 +34,8 @@ namespace smac_planner
         return "Von Neumann";
       case MotionModel::MOORE:
         return "Moore";
-      case MotionModel::DUBLIN:
-        return "Dublin";
+      case MotionModel::DUBIN:
+        return "Dubin";
       case MotionModel::REEDS_SHEPP:
         return "Reeds-Shepp";
       case MotionModel::BALKCOM_MASON:
@@ -51,8 +51,8 @@ namespace smac_planner
       return MotionModel::VON_NEUMANN;
     } else if (n == "MOORE") {
       return MotionModel::MOORE;
-    } else if (n == "DUBLIN") {
-      return MotionModel::DUBLIN;
+    } else if (n == "DUBIN") {
+      return MotionModel::DUBIN;
     } else if (n == "REEDS_SHEPP") {
       return MotionModel::REEDS_SHEPP;
     } else if (n == "BALKCOM_MASON") {
