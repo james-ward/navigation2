@@ -288,17 +288,17 @@ bool AStarAlgorithm<NodeT>::createPath(IndexPath & path, int & iterations, const
     if (isGoal(current_node)) {
       return backtracePath(current_node, path);
     }
-    else if (_best_heuristic_node.first < getToleranceHeuristic()) {
-      // Optimization: Let us find when in tolerance and refine within reason
-      approach_iterations++;
-      if (approach_iterations > getOnApproachMaxIterations() ||
-        iterations + 1 == getMaxIterations())
-      {
-        NodePtr node = & _graph->operator[](_best_heuristic_node.second);
-        return backtracePath(node, path);
-      }
-    }
-    // TODO STEVE removed for Hybrid testing
+    // else if (_best_heuristic_node.first < getToleranceHeuristic()) {
+    //   // Optimization: Let us find when in tolerance and refine within reason
+    //   approach_iterations++;
+    //   if (approach_iterations > getOnApproachMaxIterations() ||
+    //     iterations + 1 == getMaxIterations())
+    //   {
+    //     NodePtr node = & _graph->operator[](_best_heuristic_node.second);
+    //     return backtracePath(node, path);
+    //   }
+    // }
+    // TODO STEVE removed, causing issues in NodeSE2
 
     // 4) Expand neighbors of Nbest not visited
     neighbors.clear();

@@ -430,7 +430,7 @@ void SmacPlanner::removeHook(std::vector<Eigen::Vector2d> & path)
   }
 }
 
-Eigen::Vector2d getWorldCoords(
+Eigen::Vector2d SmacPlanner::getWorldCoords(
   const float & mx, const float & my, const nav2_costmap_2d::Costmap2D * costmap)
 {
   float world_x = 
