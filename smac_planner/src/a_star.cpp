@@ -26,15 +26,15 @@
     // doesnt matter as much for 2D planner, but really will matter here
     // might speed things up a bit. Reserve graph (full, 20%, whatever) but dont fill in.
 
-// TODO set nav2_package() in cmakelists
-
 // TODO Pose, IndexPath, Coordinate homologation, Eigen::vector2d seems like alot of the same crap
 
 namespace smac_planner
 {
 
 template<typename NodeT>
-AStarAlgorithm<NodeT>::AStarAlgorithm(const MotionModel & motion_model)
+AStarAlgorithm<NodeT>::AStarAlgorithm(
+  const MotionModel & motion_model,
+  const float & min_turning_radius)
 : _travel_cost_scale(0.0),
   _neutral_cost(0.0),
   _traverse_unknown(true),
@@ -46,7 +46,8 @@ AStarAlgorithm<NodeT>::AStarAlgorithm(const MotionModel & motion_model)
   _goal(nullptr),
   _graph(nullptr),
   _queue(nullptr),
-  _motion_model(motion_model)
+  _motion_model(motion_model),
+  _min_turning_radius(min_turning_radius)
 {
 }
 
@@ -113,6 +114,7 @@ void AStarAlgorithm<Node2D>::createGraph(
   }
 }
 
+// Population order theta, Y, X to match getIndex expected order
 template <>
 void AStarAlgorithm<NodeSE2>::createGraph(
   const unsigned int & x,
@@ -121,20 +123,22 @@ void AStarAlgorithm<NodeSE2>::createGraph(
   unsigned char * & costs)
 {
   _dim3_size = theta;
+  unsigned int index;
 
   if (getSizeX() != x || getSizeY() != y) {
     _x_size = x;
     _y_size = y;
-    NodeSE2::initMotionModel(_motion_model, _x_size, _dim3_size);
+    NodeSE2::initMotionModel(_motion_model, _x_size, _dim3_size, _min_turning_radius);
     _graph->clear();
     _graph->reserve(x * y * _dim3_size);
 
     for (unsigned int i = 0; i != x; i++) {
       for (unsigned int j = 0; j != y; j++) {
         for (unsigned int k = 0; k != _dim3_size; k++) {
+          index = NodeSE2::getIndex(i, j, k, _x_size, _dim3_size);
           _graph->emplace_back(
             costs[i * j],
-            NodeSE2::getIndex(i, j, k, _x_size, _dim3_size));
+            index);
         }
       }
     }
@@ -143,9 +147,10 @@ void AStarAlgorithm<NodeSE2>::createGraph(
       for (unsigned int j = 0; j != y; j++) {
         for (unsigned int k = 0; k != _dim3_size; k++) {
           // Optimization: operator[] is used over at() for performance (no bound checking)
-          _graph->operator[](i).reset(
+          index = NodeSE2::getIndex(i, j, k, _x_size, _dim3_size);
+          _graph->operator[](index).reset(
             costs[i * j],
-            NodeSE2::getIndex(i, j, k, _x_size, _dim3_size));
+            index);
         }
       }
     }

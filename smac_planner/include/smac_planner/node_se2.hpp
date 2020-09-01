@@ -57,10 +57,12 @@ struct MotionTable
 
   void initDubin(
     unsigned int & size_x_in,
-    unsigned int & angle_quantization_in);
+    unsigned int & angle_quantization_in,
+    float & min_turning_radius);
   void initReedsShepp(
     unsigned int & size_x_in,
-    unsigned int & angle_quantization_in);
+    unsigned int & angle_quantization_in,
+    float & min_turning_radius);
   void initBalkcomMason(
     unsigned int & size_x_in,
     unsigned int & angle_quantization_in);
@@ -70,7 +72,7 @@ struct MotionTable
   
   std::vector<Pose> projections;
   unsigned int size_x;
-  unsigned int angle_quantization;
+  unsigned int num_angle_quantization;
 };
 
 /**
@@ -243,7 +245,8 @@ public:
   static void initMotionModel(
     const MotionModel & motion_model,
     unsigned int & size_x,
-    unsigned int & angle_quantization);
+    unsigned int & angle_quantization,
+    float min_turning_radius);
 
   /**
    * @brief Retrieve all valid neighbors of a node.

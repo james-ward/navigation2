@@ -21,13 +21,24 @@
 #include <memory>
 #include <queue>
 #include <utility>
+#include "Eigen/Core"
 
 #include "smac_planner/node_2d.hpp"
 #include "smac_planner/node_se2.hpp"
 #include "smac_planner/types.hpp"
+#include "smac_planner/constants.hpp"
 
 namespace smac_planner
 {
+
+inline double squaredDistance(
+  const Eigen::Vector2d & p1,
+  const Eigen::Vector2d & p2)
+{
+  const double & dx = p1[0] - p2[0];
+  const double & dy = p1[1] - p2[1];
+  return hypot(dx, dy);
+}
 
 /**
  * @class smac_planner::AStarAlgorithm
@@ -57,7 +68,7 @@ public:
    * @brief A constructor for smac_planner::PlannerServer
    * @param neighborhood The type of neighborhood to use for search (4 or 8 connected)
    */
-  explicit AStarAlgorithm(const MotionModel & motion_model);
+  explicit AStarAlgorithm(const MotionModel & motion_model, const float & min_turning_radius);
 
   /**
    * @brief A destructor for smac_planner::AStarAlgorithm
@@ -232,6 +243,7 @@ private:
   unsigned int _x_size;
   unsigned int _y_size;
   unsigned int _dim3_size;
+  float _min_turning_radius;
 
   Coordinates _goal_coordinates;
   NodePtr _start;

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License. Reserved.
 
+#include <math.h>
 #include "smac_planner/node_se2.hpp"
 
 namespace smac_planner
@@ -28,41 +29,118 @@ MotionTable NodeSE2::_motion_model;
 // amount of time or particular distance forward.
 
 // http://planning.cs.uiuc.edu/node821.html
+// Model for ackermann style vehicle with minimum radius restriction
 void MotionTable::initDubin(
   unsigned int & size_x_in,
-  unsigned int & angle_quantization_in)
+  unsigned int & num_angle_quantization_in,
+  float & min_turning_radius)
 {
   size_x = size_x_in;
-  angle_quantization = angle_quantization_in;
+  num_angle_quantization = num_angle_quantization_in;
+
+  // square root of two arc length used to ensure leaving current cell
+  const float sqrt_2 = sqrt(2.0);
+  // angle must meet 3 requirements:
+  // 1) be increment of quantized bin size
+  // 2) chord length must be greater than sqrt(2) to leave current cell 
+  // 3) maximum curvature must be respected, represented by minimum turning angle
+  // Thusly:
+  // On circle of radius minimum turning angle, we need select motion primatives 
+  // with chord length > sqrt(2) and be an increment of our bin size
+  //
+  // chord >= sqrt(2) >= 2 * R * sin (angle / 2); where angle / N = quantized bin size
+  // Thusly: angle <= 2.0 * asin(sqrt(2) / (2 * R))
+  float angle = 2.0 * asin(sqrt_2 / (2 * min_turning_radius));
+  // Now make sure angle is an increment of the quantized bin size
+  // And since its based on the minimum chord, we need to make sure its always larger
+  const float bin_size =
+    2.0f * static_cast<float>(M_PI) / static_cast<float>(num_angle_quantization);
+  if (angle < bin_size) {
+    angle = bin_size;
+  } else if (angle > bin_size) {
+    const int increments = ceil(angle / bin_size);
+    angle = bin_size * increments;
+  }
+
+  // find deflections
+  // If we make a right triangle out of the chord in circle of radius
+  // min turning angle, we can see that delta X = R * sin (angle)
+  float delta_x = min_turning_radius * sin(angle);
+  // Using that same right triangle, we can see that the complement
+  // to delta Y is R * cos (angle). If we subtract R, we get the actual value
+  float delta_y = (min_turning_radius * cos(angle)) - min_turning_radius;
+
   projections.clear();
-  projections.reserve(3);//TODO
-  projections.emplace_back(1.0, 0.0, 0.0);  // Forward   
-  projections.emplace_back(0.0, 1.0, 0.0);  // Forward   
-  projections.emplace_back(0.0, -1.0, 0.0);  // Forward   
-  // projections.emplace_back(???, ???, angle_quantization_in);  // Left by 1 angular bin
-  // projections.emplace_back(???, -???, -angle_quantization_in);  // Right by 1 angular bin
+  projections.reserve(3);
+  projections.emplace_back(sqrt_2, 0.0, 0.0);  // Forward
+  projections.emplace_back(delta_x, delta_y, angle);  // Left
+  projections.emplace_back(delta_x, -delta_y, -angle);  // Right
+
+  // TODO std::cout << min_turning_radius << " " << delta_x << " " << delta_y << " " << angle << std::endl;
+  float l = 2 * min_turning_radius * sin(angle / 2);
+  std::cout << "L = " << l << std::endl;
 }
 
 // http://planning.cs.uiuc.edu/node822.html
+// Same as Dubin model but now reverse is valid
+// See notes in Dubin for explanation
 void MotionTable::initReedsShepp(
   unsigned int & size_x_in,
-  unsigned int & angle_quantization_in) //TODO
+  unsigned int & num_angle_quantization_in,
+  float & min_turning_radius)
 {
   size_x = size_x_in;
-  angle_quantization = angle_quantization_in;
+  num_angle_quantization = num_angle_quantization_in;
+
+  const float sqrt_2 = sqrt(2.0);
+  float angle = 2.0 * asin(sqrt_2 / (2 * min_turning_radius));
+  const float bin_size =
+    2.0f * static_cast<float>(M_PI) / static_cast<float>(num_angle_quantization);
+  if (angle < bin_size) {
+    angle = bin_size;
+  } else if (angle > bin_size) {
+    const int increments = ceil(angle / bin_size);
+    angle = bin_size * increments;
+  }
+  float delta_x = min_turning_radius * sin(angle);
+  float delta_y = (min_turning_radius * cos(angle)) - min_turning_radius;
+
   projections.clear();
   projections.reserve(6);
+  projections.emplace_back(sqrt_2, 0.0, 0.0);  // Forward
+  projections.emplace_back(delta_x, delta_y, angle);  // Forward + Left
+  projections.emplace_back(delta_x, -delta_y, -angle);  // Forward + Right
+  projections.emplace_back(-sqrt_2, 0.0, 0.0);  // Backward
+  projections.emplace_back(-delta_x, delta_y, angle);  // Backward + Left
+  projections.emplace_back(-delta_x, -delta_y, -angle);  // Backward + Right
 }
 
 // http://planning.cs.uiuc.edu/node823.html
+// Allows a differential drive robot to move in all the basic ways
+// its base can allow: forward and back, spin in place, rotate while moving
+// This isn't a 'pure' implementation, but in the right theme
 void MotionTable::initBalkcomMason(
   unsigned int & size_x_in,
-  unsigned int & angle_quantization_in) //TODO
+  unsigned int & num_angle_quantization_in)
 {
+  // square root of two arc length used to ensure leaving current cell
+  const float sqrt_2 = sqrt(2.0);
+
   size_x = size_x_in;
-  angle_quantization = angle_quantization_in;
+  num_angle_quantization = num_angle_quantization_in;
+  const float delta_angle =
+    2.0f * static_cast<float>(M_PI) / static_cast<float>(num_angle_quantization);
+
   projections.clear();
-  projections.reserve(6);
+  projections.reserve(8);
+  projections.emplace_back(sqrt_2, 0.0, 0.0);  // Forward
+  projections.emplace_back(-sqrt_2, 0.0, 0.0);  // Backward
+  projections.emplace_back(0.0, 0.0, delta_angle);  // Spin left
+  projections.emplace_back(0.0, 0.0, -delta_angle);  // Spin right
+  projections.emplace_back(sqrt_2, 0.0, delta_angle);  // Spin left + Forward
+  projections.emplace_back(-sqrt_2, 0.0, delta_angle);  // Spin left + Backward
+  projections.emplace_back(sqrt_2, 0.0, -delta_angle);  // Spin right + Forward
+  projections.emplace_back(-sqrt_2, 0.0, -delta_angle);  // Spin right + Backward
 }
 
 Poses MotionTable::getProjections(NodeSE2 * & node)
@@ -140,18 +218,19 @@ float NodeSE2::getHeuristicCost(
 void NodeSE2::initMotionModel(
   const MotionModel & motion_model,
   unsigned int & size_x,
-  unsigned int & angle_quantization)
+  unsigned int & num_angle_quantization,
+  float min_turning_radius)
 {
   // find the motion model selected
   switch(motion_model) {
     case MotionModel::DUBIN:
-      _motion_model.initDubin(size_x, angle_quantization);
+      _motion_model.initDubin(size_x, num_angle_quantization, min_turning_radius);
       break;
     case MotionModel::REEDS_SHEPP:
-      _motion_model.initReedsShepp(size_x, angle_quantization);
+      _motion_model.initReedsShepp(size_x, num_angle_quantization, min_turning_radius);
       break;
     case MotionModel::BALKCOM_MASON:
-      _motion_model.initBalkcomMason(size_x, angle_quantization);
+      _motion_model.initBalkcomMason(size_x, num_angle_quantization);
       break;
     default:
       throw std::runtime_error("Invalid motion model for SE2 node. Please select between"
@@ -173,7 +252,7 @@ void NodeSE2::getNeighbors(
   for(unsigned int i = 0; i != projections.size(); ++i) {
     index = NodeSE2::getIndex(
       projections[i]._x, projections[i]._y, projections[i]._theta,
-      _motion_model.size_x, _motion_model.angle_quantization);
+      _motion_model.size_x, _motion_model.num_angle_quantization);
     if (validity_checker(index, neighbor))
     {
       neighbor->setPose(projections[i]);
