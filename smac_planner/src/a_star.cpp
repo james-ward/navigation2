@@ -114,7 +114,7 @@ void AStarAlgorithm<Node2D>::createGraph(
   }
 }
 
-// Population order theta, Y, X to match getIndex expected order
+// Population order theta, X, Y to match getIndex expected structure
 template <>
 void AStarAlgorithm<NodeSE2>::createGraph(
   const unsigned int & x,
@@ -132,24 +132,24 @@ void AStarAlgorithm<NodeSE2>::createGraph(
     _graph->clear();
     _graph->reserve(x * y * _dim3_size);
 
-    for (unsigned int i = 0; i != x; i++) {
-      for (unsigned int j = 0; j != y; j++) {
+    for (unsigned int j = 0; j != y; j++) {
+      for (unsigned int i = 0; i != x; i++) {
         for (unsigned int k = 0; k != _dim3_size; k++) {
           index = NodeSE2::getIndex(i, j, k, _x_size, _dim3_size);
           _graph->emplace_back(
-            costs[i * j],
+            costs[i + _x_size * j],
             index);
         }
       }
     }
   } else {
-    for (unsigned int i = 0; i != x; i++) {
-      for (unsigned int j = 0; j != y; j++) {
+    for (unsigned int j = 0; j != y; j++) {
+      for (unsigned int i = 0; i != x; i++) {
         for (unsigned int k = 0; k != _dim3_size; k++) {
           // Optimization: operator[] is used over at() for performance (no bound checking)
           index = NodeSE2::getIndex(i, j, k, _x_size, _dim3_size);
           _graph->operator[](index).reset(
-            costs[i * j],
+            costs[i + _x_size * j],
             index);
         }
       }

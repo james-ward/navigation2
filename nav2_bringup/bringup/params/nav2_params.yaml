@@ -259,7 +259,7 @@ planner_server:
       allow_unknown: false              # allow traveling in unknown space
       travel_cost_scale: 0.8            # [0,1] metric for how much you value staying out of higher-cost spaces (higher more adverse)
       max_iterations: -1                # maximum total iterations to search for before returning
-      max_on_approach_iterations: 1000  # maximum number of iterations to attempt to reach goal once in tolerance
+      max_on_approach_iterations: 1000  # maximum number of iterations to attempt to reach goal once in tolerance, 2D only
       smooth_path: false                 # Whether to smooth searched path
       upsample_path: false              # Whether to upsample path after smoothing, recommend off unless controller requires
       motion_model_for_search: "DUBIN"  # 4, 8 connected; Dubin, Redds-Shepp, Balkcom-Mason

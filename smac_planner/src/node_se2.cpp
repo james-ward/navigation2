@@ -75,9 +75,6 @@ void MotionTable::initDubin(
   projections.emplace_back(sqrt_2, 0.0, 0.0);  // Forward
   projections.emplace_back(delta_x, delta_y, angle);  // Left
   projections.emplace_back(delta_x, -delta_y, -angle);  // Right
-
-  float l = 2 * min_turning_radius * sin(angle / 2);
-  std::cout << "L = " << l << std::endl;
 }
 
 // http://planning.cs.uiuc.edu/node822.html
