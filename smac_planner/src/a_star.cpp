@@ -261,9 +261,14 @@ bool AStarAlgorithm<NodeT>::createPath(IndexPath & path, int & iterations, const
   typename NodeVector::iterator neighbor_iterator;
 
   // Given an index, return a node ptr reference if its collision-free and valid
+  const unsigned int max_index = getSizeX() * getSizeY() * getSizeDim3();
   std::function<bool(const unsigned int&, NodeT*&)> node_validity_checker =
   [&, this](const unsigned int & index, NodePtr & neighbor) -> bool
   {
+      if (index < 0 || index >= max_index) {
+        return false;
+      }
+
       neighbor = & _graph->operator[](index);
       if (neighbor->isNodeValid(_traverse_unknown))
       {
@@ -293,17 +298,16 @@ bool AStarAlgorithm<NodeT>::createPath(IndexPath & path, int & iterations, const
     if (isGoal(current_node)) {
       return backtracePath(current_node, path);
     }
-    // else if (_best_heuristic_node.first < getToleranceHeuristic()) {
-    //   // Optimization: Let us find when in tolerance and refine within reason
-    //   approach_iterations++;
-    //   if (approach_iterations > getOnApproachMaxIterations() ||
-    //     iterations + 1 == getMaxIterations())
-    //   {
-    //     NodePtr node = & _graph->operator[](_best_heuristic_node.second);
-    //     return backtracePath(node, path);
-    //   }
-    // }
-    // TODO STEVE removed, causing issues in NodeSE2
+    else if (_best_heuristic_node.first < getToleranceHeuristic()) {
+      // Optimization: Let us find when in tolerance and refine within reason
+      approach_iterations++;
+      if (approach_iterations > getOnApproachMaxIterations() ||
+        iterations + 1 == getMaxIterations())
+      {
+        NodePtr node = & _graph->operator[](_best_heuristic_node.second);
+        return backtracePath(node, path);
+      }
+    }
 
     // 4) Expand neighbors of Nbest not visited
     neighbors.clear();
@@ -371,6 +375,7 @@ bool AStarAlgorithm<NodeSE2>::backtracePath(NodePtr & node, IndexPath & path)
   NodePtr current_node = node;
 
   // TODO(stevemacenski): return orientation (important?)
+  // TODO: deal with rotations in place should be a node or cull b/c no orientation?
   while (current_node->parent) {
     const Pose node_continuous_pose = current_node->pose;
     path.push_back({node_continuous_pose._x, node_continuous_pose._y});
@@ -485,8 +490,7 @@ unsigned int & AStarAlgorithm<NodeT>::getSizeDim3()
   return _dim3_size;
 }
 
-// Instantiate AStartAlgorithm for the supported template type parameters
-// This is needed to prevent "undefined symbol" errors at runtime.
+// Instantiate algorithm for the supported template types
 template class AStarAlgorithm<Node2D>;
 template class AStarAlgorithm<NodeSE2>;
 

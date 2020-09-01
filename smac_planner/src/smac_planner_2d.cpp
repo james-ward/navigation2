@@ -227,14 +227,13 @@ nav_msgs::msg::Path SmacPlanner2D::createPlan(
     char_costmap);
 
   // Set starting point
-  unsigned int mx, my, index;
+  unsigned int mx, my;
   costmap->worldToMap(start.pose.position.x, start.pose.position.y, mx, my);
   double orientation = tf2::getYaw(start.pose.orientation);
   _a_star->setStart(mx, my, 0);
 
   // Set goal point
   costmap->worldToMap(goal.pose.position.x, goal.pose.position.y, mx, my);
-  index = costmap->getIndex(mx, my);
   orientation = tf2::getYaw(start.pose.orientation);
   _a_star->setGoal(mx, my, 0);
 
@@ -281,8 +280,8 @@ nav_msgs::msg::Path SmacPlanner2D::createPlan(
   // We're going to downsample by 4x to give terms room to move.
   const int downsample_ratio = 4;
   std::vector<Eigen::Vector2d> path_world;
-  path_world.reserve(path.size() / downsample_ratio);
-  plan.poses.reserve(path.size() / downsample_ratio);
+  path_world.reserve(_smoother ? path.size() / downsample_ratio : path.size());
+  plan.poses.reserve(_smoother ? path.size() / downsample_ratio : path.size());
 
   for (int i = path.size() - 1; i >= 0; --i) {
     if (_smoother && i % downsample_ratio != 0) {

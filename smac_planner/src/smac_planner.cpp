@@ -48,6 +48,7 @@
 // way to do collision checking on oriented footprint https://github.com/windelbouwman/move-base-ompl/blob/master/src/ompl_global_planner.cpp#L133 (but doesnt cache)
 // https://github.com/ompl/ompl/blob/master/demos/GeometricCarPlanning.cpp for reeds/dubin hybrid. There's also a 2D point to point demo that could be helpful.
 // optimization flags -03
+// max iterations on approach only for 2D, not for SE2
 
 // In fact, I use that smoother in the A* implementation to make it "smooth" so its not grid-blocky. 
 // Its actually how I tested the smoother since that's the nuclear case with tons of sharp random angles.
@@ -100,7 +101,7 @@ void SmacPlanner::configure(
 
   bool allow_unknown;
   int max_iterations;
-  int max_on_approach_iterations;
+  int max_on_approach_iterations = std::numeric_limits<int>::max();
   int angle_quantizations;
   float travel_cost_scale;
   float minimum_turning_radius;
@@ -134,9 +135,6 @@ void SmacPlanner::configure(
   nav2_util::declare_parameter_if_not_declared(
     _node, name + ".travel_cost_scale", rclcpp::ParameterValue(0.8));
   _node->get_parameter(name + ".travel_cost_scale", travel_cost_scale);
-  nav2_util::declare_parameter_if_not_declared(
-    _node, name + ".max_on_approach_iterations", rclcpp::ParameterValue(1000));
-  _node->get_parameter(name + ".max_on_approach_iterations", max_on_approach_iterations);
   nav2_util::declare_parameter_if_not_declared(
     _node, name + ".smooth_path", rclcpp::ParameterValue(true));
   _node->get_parameter(name + ".smooth_path", smooth_path);
@@ -286,14 +284,13 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
     char_costmap);
 
   // Set starting point
-  unsigned int mx, my, index;
+  unsigned int mx, my;
   costmap->worldToMap(start.pose.position.x, start.pose.position.y, mx, my);
   double orientation = tf2::getYaw(start.pose.orientation);
   _a_star->setStart(mx, my, static_cast<unsigned int>(orientation / _angle_bin_size));
 
   // Set goal point
   costmap->worldToMap(goal.pose.position.x, goal.pose.position.y, mx, my);
-  index = costmap->getIndex(mx, my);
   orientation = tf2::getYaw(start.pose.orientation);
   _a_star->setGoal(mx, my, static_cast<unsigned int>(orientation / _angle_bin_size));
 
@@ -340,8 +337,8 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
   // We're going to downsample by 4x to give terms room to move.
   const int downsample_ratio = 4;
   std::vector<Eigen::Vector2d> path_world;
-  path_world.reserve(path.size() / downsample_ratio);
-  plan.poses.reserve(path.size() / downsample_ratio);
+  path_world.reserve(_smoother ? path.size() / downsample_ratio : path.size());
+  plan.poses.reserve(_smoother ? path.size() / downsample_ratio : path.size());
 
   for (int i = path.size() - 1; i >= 0; --i) {
     if (_smoother && i % downsample_ratio != 0) {
@@ -436,10 +433,10 @@ void SmacPlanner::removeHook(std::vector<Eigen::Vector2d> & path)
 Eigen::Vector2d SmacPlanner::getWorldCoords(
   const float & mx, const float & my, const nav2_costmap_2d::Costmap2D * costmap)
 {
-  float world_x = 
-    static_cast<float>(costmap->getOriginX()) + (mx + 0.5) * costmap->getResolution();
-  float world_y =
-    static_cast<float>(costmap->getOriginY()) + (my + 0.5) * costmap->getResolution();
+  double world_x = 
+    static_cast<double>(costmap->getOriginX()) + (mx + 0.5) * costmap->getResolution();
+  double world_y =
+    static_cast<double>(costmap->getOriginY()) + (my + 0.5) * costmap->getResolution();
   return Eigen::Vector2d(world_x, world_y);
 }
 

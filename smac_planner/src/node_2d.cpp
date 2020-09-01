@@ -54,14 +54,15 @@ bool Node2D::isNodeValid(const bool & traverse_unknown) {
   // This is intentionally un-included to increase speed, but be aware. If this causes
   // trouble, please file a ticket and we can address it then.
 
-  // occupied node
   auto & cost = this->getCost();
+
+  // occupied node
   if (cost == OCCUPIED || cost == INSCRIBED) {
     return false;
   }
 
   // unknown node
-  if (cost == UNKNOWN && ! traverse_unknown) {
+  if (cost == UNKNOWN && !traverse_unknown) {
     return false;
   }
 
@@ -100,7 +101,7 @@ void Node2D::initNeighborhood(
 
 void Node2D::getNeighbors(
   NodePtr & node,
-  std::function<bool(const unsigned int&, smac_planner::Node2D*&)> & validity_checker,
+  std::function<bool(const unsigned int&, smac_planner::Node2D*&)> & validityCheckerFunctor,
   NodeVector & neighbors)
 {
   // NOTE(stevemacenski): Irritatingly, the order here matters. If you start in free
@@ -120,7 +121,7 @@ void Node2D::getNeighbors(
 
   for(unsigned int i = 0; i != _neighbors_grid_offsets.size(); ++i) {
     index = node_i + _neighbors_grid_offsets[i];
-    if (index > 0 && validity_checker(index, neighbor))
+    if (validityCheckerFunctor(index, neighbor))
     {
       neighbors.push_back(neighbor);
     }

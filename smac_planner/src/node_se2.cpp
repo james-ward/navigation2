@@ -76,7 +76,6 @@ void MotionTable::initDubin(
   projections.emplace_back(delta_x, delta_y, angle);  // Left
   projections.emplace_back(delta_x, -delta_y, -angle);  // Right
 
-  // TODO std::cout << min_turning_radius << " " << delta_x << " " << delta_y << " " << angle << std::endl;
   float l = 2 * min_turning_radius * sin(angle / 2);
   std::cout << "L = " << l << std::endl;
 }
@@ -192,14 +191,17 @@ bool NodeSE2::isNodeValid(const bool & traverse_unknown) {
   // This is intentionally un-included to increase speed, but be aware. If this causes
   // trouble, please file a ticket and we can address it then.
 
+  // TODO SE2 collision checking
+
+  float & cost = this->getCost();
+
   // occupied node
-  auto & cost = this->getCost();
   if (cost == OCCUPIED || cost == INSCRIBED) {
     return false;
   }
 
   // unknown node
-  if (cost == UNKNOWN && ! traverse_unknown) {
+  if (cost == UNKNOWN && !traverse_unknown) {
     return false;
   }
 
@@ -242,20 +244,21 @@ void NodeSE2::initMotionModel(
 
 void NodeSE2::getNeighbors(
   NodePtr & node,
-  std::function<bool(const unsigned int&, smac_planner::NodeSE2*&)> & validity_checker,
+  std::function<bool(const unsigned int&, smac_planner::NodeSE2*&)> & validityCheckerFunctor,
   NodeVector & neighbors)
 {
   int index;
   NodePtr neighbor = nullptr;
-  Poses projections = _motion_model.getProjections(node);
+  const Poses motion_projections = _motion_model.getProjections(node);
 
-  for(unsigned int i = 0; i != projections.size(); ++i) {
+  for(unsigned int i = 0; i != motion_projections.size(); ++i) {
     index = NodeSE2::getIndex(
-      projections[i]._x, projections[i]._y, projections[i]._theta,
+      static_cast<unsigned int>(motion_projections[i]._x),
+      static_cast<unsigned int>(motion_projections[i]._y),
+      static_cast<unsigned int>(motion_projections[i]._theta),
       _motion_model.size_x, _motion_model.num_angle_quantization);
-    if (validity_checker(index, neighbor))
-    {
-      neighbor->setPose(projections[i]);
+    if (validityCheckerFunctor(index, neighbor)) {
+      neighbor->setPose(motion_projections[i]);
       neighbors.push_back(neighbor);
     }
   }
