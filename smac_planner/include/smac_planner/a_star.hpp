@@ -53,6 +53,7 @@ public:
   typedef std::vector<NodePtr> NodeVector;
   typedef std::pair<float, NodePtr> NodeElement;
   typedef typename NodeT::Coordinates Coordinates;
+  typedef typename NodeT::CoordinateVector CoordinateVector;
 
   struct NodeComparator
   {
@@ -97,7 +98,7 @@ public:
    * @param tolerance Reference to tolerance in costmap nodes
    * @return if plan was successful
    */
-  bool createPath(IndexPath & path, int & num_iterations, const float & tolerance);
+  bool createPath(CoordinateVector & path, int & num_iterations, const float & tolerance);
 
   /**
    * @brief Create the graph based on the node type. For 2D nodes, a cost grid.
@@ -136,7 +137,7 @@ public:
    * @param path Reference to a vector of indicies of generated path
    * @return whether the path was able to be backtraced
    */
-  bool backtracePath(NodePtr & node, IndexPath & path);
+  bool backtracePath(NodePtr & node, CoordinateVector & path);
 
   /**
    * @brief Get maximum number of iterations to plan

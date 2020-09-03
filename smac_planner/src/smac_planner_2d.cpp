@@ -250,7 +250,7 @@ nav_msgs::msg::Path SmacPlanner2D::createPlan(
   pose.pose.orientation.w = 1.0;
 
   // Compute plan
-  IndexPath path;
+  Node2D::CoordinateVector path;
   int num_iterations = 0;
   std::string error;
   try {
@@ -288,7 +288,7 @@ nav_msgs::msg::Path SmacPlanner2D::createPlan(
       continue;
     }
 
-    path_world.push_back(getWorldCoords(path[i].first, path[i].second, costmap));
+    path_world.push_back(getWorldCoords(path[i].x, path[i].y, costmap));
     pose.pose.position.x = path_world.back().x();
     pose.pose.position.y = path_world.back().y();
     plan.poses.push_back(pose);

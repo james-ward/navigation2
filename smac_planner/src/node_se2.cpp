@@ -38,8 +38,6 @@ void MotionTable::initDubin(
   size_x = size_x_in;
   num_angle_quantization = num_angle_quantization_in;
 
-  // square root of two arc length used to ensure leaving current cell
-  const float sqrt_2 = sqrt(2.0);
   // angle must meet 3 requirements:
   // 1) be increment of quantized bin size
   // 2) chord length must be greater than sqrt(2) to leave current cell 
@@ -139,9 +137,9 @@ void MotionTable::initBalkcomMason(
   projections.emplace_back(-sqrt_2, 0.0, -delta_angle);  // Spin right + Backward
 }
 
-Poses MotionTable::getProjections(NodeSE2 * & node)
+MotionPoses MotionTable::getProjections(NodeSE2 * & node)
 {
-  Poses projection_list;
+  MotionPoses projection_list;
   for (uint i = 0; i != projections.size(); i++) {
     projection_list.push_back(getProjection(node, i));
   }
@@ -149,7 +147,7 @@ Poses MotionTable::getProjections(NodeSE2 * & node)
   return projection_list;
 }
 
-Pose MotionTable::getProjection(NodeSE2 * & node, const unsigned int & motion_index)
+MotionPose MotionTable::getProjection(NodeSE2 * & node, const unsigned int & motion_index)
 {
   return node->pose + projections[motion_index];
 }
@@ -246,7 +244,7 @@ void NodeSE2::getNeighbors(
 {
   int index;
   NodePtr neighbor = nullptr;
-  const Poses motion_projections = _motion_model.getProjections(node);
+  const MotionPoses motion_projections = _motion_model.getProjections(node);
 
   for(unsigned int i = 0; i != motion_projections.size(); ++i) {
     index = NodeSE2::getIndex(
@@ -255,7 +253,11 @@ void NodeSE2::getNeighbors(
       static_cast<unsigned int>(motion_projections[i]._theta),
       _motion_model.size_x, _motion_model.num_angle_quantization);
     if (validityCheckerFunctor(index, neighbor)) {
-      neighbor->setPose(motion_projections[i]);
+      neighbor->setPose(
+        Coordinates(
+          motion_projections[i]._x,
+          motion_projections[i]._y,
+          motion_projections[i]._theta));
       neighbors.push_back(neighbor);
     }
   }

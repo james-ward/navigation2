@@ -307,7 +307,7 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
   pose.pose.orientation.w = 1.0;
 
   // Compute plan
-  IndexPath path;
+  NodeSE2::CoordinateVector path;
   int num_iterations = 0;
   std::string error;
   try {
@@ -345,9 +345,12 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
       continue;
     }
 
-    path_world.push_back(getWorldCoords(path[i].first, path[i].second, costmap));
+    path_world.push_back(getWorldCoords(path[i].x, path[i].y, costmap));
     pose.pose.position.x = path_world.back().x();
     pose.pose.position.y = path_world.back().y();
+    tf2::Quaternion q;
+    q.setEuler(0.0, 0.0, path[i].theta * _angle_bin_size);  // theta is in continuous bin coordinates
+    pose.pose.orientation = tf2::toMsg(q);
     plan.poses.push_back(pose);
   }
 
@@ -391,6 +394,7 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
       pose.pose.position.x = path_world[i][0];
       pose.pose.position.y = path_world[i][1];
       plan.poses[i] = pose;
+      // TODO orientation from tangent
     }
     _smoothed_plan_publisher->publish(plan);
   }
@@ -412,6 +416,7 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
     pose.pose.position.x = path_world[i][0];
     pose.pose.position.y = path_world[i][1];
     plan.poses[i] = pose;
+    // TODO orientation from tangent
   }
 
   return plan;

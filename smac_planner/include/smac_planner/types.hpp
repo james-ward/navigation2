@@ -21,8 +21,6 @@
 namespace smac_planner
 {
 
-typedef std::vector<std::pair<float, float>> IndexPath;
-
 typedef std::pair<float, unsigned int> NodeHeuristicPair;
 
 }  // namespace smac_planner

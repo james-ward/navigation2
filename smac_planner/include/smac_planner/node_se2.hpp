@@ -29,16 +29,17 @@
 namespace smac_planner
 {
 
-struct Pose
+// Need seperate pose struct for motion table operations
+struct MotionPose
 {
-  Pose() {}
-  Pose(const float x, const float y, const float theta)
+  MotionPose() {}
+  MotionPose(const float x, const float y, const float theta)
   : _x(x), _y(y), _theta(theta)
   {}
 
-  Pose operator+(const Pose & rhs)
+  MotionPose operator+(const MotionPose & rhs)
   {
-    return Pose(rhs._x + _x, rhs._y + _y, rhs._theta + _theta);
+    return MotionPose(rhs._x + _x, rhs._y + _y, rhs._theta + _theta);
   }
 
   float _x;
@@ -46,7 +47,7 @@ struct Pose
   float _theta;
 };
 
-typedef std::vector<Pose> Poses;
+typedef std::vector<MotionPose> MotionPoses;
 
 // Must forward declare
 class NodeSE2;
@@ -67,10 +68,10 @@ struct MotionTable
     unsigned int & size_x_in,
     unsigned int & angle_quantization_in);
 
-  Poses getProjections(NodeSE2 * & node);
-  Pose getProjection(NodeSE2 * & node, const unsigned int & motion_index);
+  MotionPoses getProjections(NodeSE2 * & node);
+  MotionPose getProjection(NodeSE2 * & node, const unsigned int & motion_index);
   
-  std::vector<Pose> projections;
+  MotionPoses projections;
   unsigned int size_x;
   unsigned int num_angle_quantization;
 };
@@ -96,8 +97,20 @@ public:
     : x(x_in), y(y_in), theta(theta_in)
     {};
 
+  /**
+   * @brief operator+ for addition
+   * @param MotionPose right hand side reference
+   * @return Added MotionPose and Coordinate
+   */
+    MotionPose operator+(const MotionPose & rhs)
+    {
+      return MotionPose(rhs._x + x, rhs._y + y, rhs._theta + theta);
+    }
+
     float x, y, theta;
   };
+
+  typedef std::vector<Coordinates> CoordinateVector;
 
   /**
    * @brief A constructor for smac_planner::NodeSE2
@@ -125,7 +138,7 @@ public:
    * @brief setting continuous coordinate search poses (in partial-cells)
    * @param Pose pose
    */
-  inline void setPose(const Pose & pose_in)
+  inline void setPose(const Coordinates & pose_in)
   {
     pose = pose_in;
   }
@@ -260,7 +273,7 @@ public:
     NodeVector & neighbors);
 
   NodeSE2 * parent;
-  Pose pose;
+  Coordinates pose;
 
 private:
   float _cell_cost;

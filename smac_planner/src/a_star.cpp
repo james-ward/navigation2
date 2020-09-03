@@ -26,8 +26,6 @@
     // doesnt matter as much for 2D planner, but really will matter here
     // might speed things up a bit. Reserve graph (full, 20%, whatever) but dont fill in.
 
-// TODO Pose, IndexPath, Coordinate homologation, Eigen::vector2d seems like alot of the same crap
-
 namespace smac_planner
 {
 
@@ -86,28 +84,28 @@ void AStarAlgorithm<NodeT>::initialize(
 
 template <>
 void AStarAlgorithm<Node2D>::createGraph(
-  const unsigned int & x,
-  const unsigned int & y,
-  const unsigned int & theta,
+  const unsigned int & x_size,
+  const unsigned int & y_size,
+  const unsigned int & theta_size,
   unsigned char * & costs)
 {
-  if (theta != 1) {
+  if (theta_size != 1) {
     throw std::runtime_error("Node type Node2D cannot be given non-1 angle quantization.");
   }
 
-  _dim3_size = theta;  // 2D search MUST be 2D, not 3D or SE2.
+  _dim3_size = theta_size;  // 2D search MUST be 2D, not 3D or SE2.
 
-  if (getSizeX() != x || getSizeY() != y) {
-    _x_size = x;
-    _y_size = y;
+  if (getSizeX() != x_size || getSizeY() != y_size) {
+    _x_size = x_size;
+    _y_size = y_size;
     Node2D::initNeighborhood(_x_size, _motion_model);
     _graph->clear();
-    _graph->reserve(x * y);
-    for (unsigned int i = 0; i != x * y; i++) {
+    _graph->reserve(x_size * y_size);
+    for (unsigned int i = 0; i != x_size * y_size; i++) {
       _graph->emplace_back(costs[i], i);
     }
   } else {
-    for (unsigned int i = 0; i != x * y; i++) {
+    for (unsigned int i = 0; i != x_size * y_size; i++) {
       // Optimization: operator[] is used over at() for performance (no bound checking)
       _graph->operator[](i).reset(costs[i], i);
     }
@@ -117,23 +115,23 @@ void AStarAlgorithm<Node2D>::createGraph(
 // Population order theta, X, Y to match getIndex expected structure
 template <>
 void AStarAlgorithm<NodeSE2>::createGraph(
-  const unsigned int & x,
-  const unsigned int & y,
-  const unsigned int & theta,
+  const unsigned int & x_size,
+  const unsigned int & y_size,
+  const unsigned int & theta_size,
   unsigned char * & costs)
 {
-  _dim3_size = theta;
+  _dim3_size = theta_size;
   unsigned int index;
 
-  if (getSizeX() != x || getSizeY() != y) {
-    _x_size = x;
-    _y_size = y;
+  if (getSizeX() != x_size || getSizeY() != y_size) {
+    _x_size = x_size;
+    _y_size = y_size;
     NodeSE2::initMotionModel(_motion_model, _x_size, _dim3_size, _min_turning_radius);
     _graph->clear();
-    _graph->reserve(x * y * _dim3_size);
+    _graph->reserve(x_size * y_size * _dim3_size);
 
-    for (unsigned int j = 0; j != y; j++) {
-      for (unsigned int i = 0; i != x; i++) {
+    for (unsigned int j = 0; j != y_size; j++) {
+      for (unsigned int i = 0; i != x_size; i++) {
         for (unsigned int k = 0; k != _dim3_size; k++) {
           index = NodeSE2::getIndex(i, j, k, _x_size, _dim3_size);
           _graph->emplace_back(
@@ -143,8 +141,8 @@ void AStarAlgorithm<NodeSE2>::createGraph(
       }
     }
   } else {
-    for (unsigned int j = 0; j != y; j++) {
-      for (unsigned int i = 0; i != x; i++) {
+    for (unsigned int j = 0; j != y_size; j++) {
+      for (unsigned int i = 0; i != x_size; i++) {
         for (unsigned int k = 0; k != _dim3_size; k++) {
           // Optimization: operator[] is used over at() for performance (no bound checking)
           index = NodeSE2::getIndex(i, j, k, _x_size, _dim3_size);
@@ -178,7 +176,7 @@ void AStarAlgorithm<NodeSE2>::setStart(
 {
   unsigned int index = NodeSE2::getIndex(mx, my, theta, getSizeX(), getSizeDim3());
   _start = & _graph->operator[](index);
-  _start->setPose(Pose(mx, my, theta));
+  _start->setPose(Coordinates(mx, my, theta));
 }
 
 template <>
@@ -239,7 +237,7 @@ bool AStarAlgorithm<NodeT>::areInputsValid()
 }
 
 template<typename NodeT>
-bool AStarAlgorithm<NodeT>::createPath(IndexPath & path, int & iterations, const float & tolerance)
+bool AStarAlgorithm<NodeT>::createPath(CoordinateVector & path, int & iterations, const float & tolerance)
 {  
   if (!areInputsValid()) {
     return false;
@@ -346,7 +344,7 @@ bool AStarAlgorithm<NodeT>::isGoal(NodePtr & node)
 }
 
 template <>
-bool AStarAlgorithm<Node2D>::backtracePath(NodePtr & node, IndexPath & path)
+bool AStarAlgorithm<Node2D>::backtracePath(NodePtr & node, CoordinateVector & path)
 {
   if (!node->parent) {
     return false;
@@ -355,10 +353,8 @@ bool AStarAlgorithm<Node2D>::backtracePath(NodePtr & node, IndexPath & path)
   NodePtr current_node = node;
 
   while (current_node->parent) {
-    Node2D::Coordinates coords = Node2D::getCoords(
-      current_node->getIndex(), getSizeX(), getSizeDim3());
-    path.emplace_back(
-      static_cast<float>(coords.x), static_cast<float>(coords.y));
+    path.push_back(Node2D::getCoords(
+      current_node->getIndex(), getSizeX(), getSizeDim3()));
     current_node = current_node->parent;
   }
 
@@ -366,7 +362,7 @@ bool AStarAlgorithm<Node2D>::backtracePath(NodePtr & node, IndexPath & path)
 }
 
 template <>
-bool AStarAlgorithm<NodeSE2>::backtracePath(NodePtr & node, IndexPath & path)
+bool AStarAlgorithm<NodeSE2>::backtracePath(NodePtr & node, CoordinateVector & path)
 {
   if (!node->parent) {
     return false;
@@ -375,10 +371,10 @@ bool AStarAlgorithm<NodeSE2>::backtracePath(NodePtr & node, IndexPath & path)
   NodePtr current_node = node;
 
   // TODO(stevemacenski): return orientation (important?)
-  // TODO: deal with rotations in place should be a node or cull b/c no orientation?
+  // TODO: deal with rotations in place should be a node or cull b/c no orientation info?
   while (current_node->parent) {
-    const Pose node_continuous_pose = current_node->pose;
-    path.push_back({node_continuous_pose._x, node_continuous_pose._y});
+    const Coordinates node_continuous_pose = current_node->pose;
+    path.push_back(node_continuous_pose);
     current_node = current_node->parent;
   }
 

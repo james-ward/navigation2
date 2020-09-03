@@ -53,6 +53,7 @@ public:
     
     float x, y; 
   };
+  typedef std::vector<Coordinates> CoordinateVector;
 
   /**
    * @brief A constructor for smac_planner::Node2D
