@@ -17,6 +17,7 @@
 
 #include <math.h>
 #include <vector>
+#include <cmath>
 #include <iostream>
 #include <functional>
 #include <queue>
@@ -33,14 +34,9 @@ namespace smac_planner
 struct MotionPose
 {
   MotionPose() {}
-  MotionPose(const float x, const float y, const float theta)
+  MotionPose(const float & x, const float & y, const float & theta)
   : _x(x), _y(y), _theta(theta)
   {}
-
-  MotionPose operator+(const MotionPose & rhs)
-  {
-    return MotionPose(rhs._x + _x, rhs._y + _y, rhs._theta + _theta);
-  }
 
   float _x;
   float _y;
@@ -102,9 +98,23 @@ public:
    * @param MotionPose right hand side reference
    * @return Added MotionPose and Coordinate
    */
-    MotionPose operator+(const MotionPose & rhs)
+    MotionPose operator+(const MotionPose & motion_model)
     {
-      return MotionPose(rhs._x + x, rhs._y + y, rhs._theta + theta);
+      // TODO transform delta X, Y, and Theta into local coordinates
+      const float cos_theta = cos(theta);
+      const float sin_theta = sin(theta);
+      const float delta_x = motion_model._x * cos_theta - motion_model._y * sin_theta;
+      const float delta_y = motion_model._x * sin_theta + motion_model._y * cos_theta;
+      float new_heading = theta + motion_model._theta;
+
+      // TODO normalize theta - by number of bins
+      if (new_heading >= 72.0) {
+        new_heading -= 72.0;
+      } else if (new_heading < 0.0) {
+        new_heading += 72.0;
+      }
+
+      return MotionPose(delta_x + x, delta_y + y, new_heading);
     }
 
     float x, y, theta;

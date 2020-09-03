@@ -66,18 +66,20 @@ void MotionTable::initDubin(
   float delta_x = min_turning_radius * sin(angle);
   // Using that same right triangle, we can see that the complement
   // to delta Y is R * cos (angle). If we subtract R, we get the actual value
-  float delta_y = (min_turning_radius * cos(angle)) - min_turning_radius;
+  float delta_y = min_turning_radius - (min_turning_radius * cos(angle));
 
   projections.clear();
   projections.reserve(3);
-  projections.emplace_back(sqrt_2, 0.0, 0.0);  // Forward
-  projections.emplace_back(delta_x, delta_y, angle);  // Left
-  projections.emplace_back(delta_x, -delta_y, -angle);  // Right
+  projections.emplace_back(hypotf(delta_x, delta_y), 0.0, 0.0);  // Forward
+  projections.emplace_back(delta_x, delta_y, increments);  // Left
+  projections.emplace_back(delta_x, -delta_y, -increments);  // Right
 }
 
 // http://planning.cs.uiuc.edu/node822.html
 // Same as Dubin model but now reverse is valid
 // See notes in Dubin for explanation
+// TODO update reeds shepp and balkcom mason based on Dubin outcome 
+// TODO make sure operator+ handles backwards OK
 void MotionTable::initReedsShepp(
   unsigned int & size_x_in,
   unsigned int & num_angle_quantization_in,
@@ -101,10 +103,10 @@ void MotionTable::initReedsShepp(
 
   projections.clear();
   projections.reserve(6);
-  projections.emplace_back(sqrt_2, 0.0, 0.0);  // Forward
+  projections.emplace_back(hypotf(delta_x, delta_y), 0.0, 0.0);  // Forward
   projections.emplace_back(delta_x, delta_y, angle);  // Forward + Left
   projections.emplace_back(delta_x, -delta_y, -angle);  // Forward + Right
-  projections.emplace_back(-sqrt_2, 0.0, 0.0);  // Backward
+  projections.emplace_back(-hypotf(delta_x, delta_y), 0.0, 0.0);  // Backward
   projections.emplace_back(-delta_x, delta_y, angle);  // Backward + Left
   projections.emplace_back(-delta_x, -delta_y, -angle);  // Backward + Right
 }
@@ -185,8 +187,6 @@ bool NodeSE2::isNodeValid(const bool & traverse_unknown) {
   // in the queue that it will never be called if a valid path exists.
   // This is intentionally un-included to increase speed, but be aware. If this causes
   // trouble, please file a ticket and we can address it then.
-
-  // TODO SE2 collision checking
 
   float & cost = this->getCost();
 

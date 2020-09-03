@@ -42,7 +42,6 @@
 // astar timeout, max duration, optimizer gets rest or until its set maximum. Test time before/after A* but not in it, that would slow down. if over, send log warning like DWB
 
 // if collision in smoothed path, anchor that point and then re-run until successful (helpful in narrow spaces).
-// try vornoi from dynamic vornoi && if works, optimize it && put into vornoi layer in costmap 2d (how with struct / non char*?)
 
 // NOTES 
 // way to do collision checking on oriented footprint https://github.com/windelbouwman/move-base-ompl/blob/master/src/ompl_global_planner.cpp#L133 (but doesnt cache)
@@ -287,12 +286,12 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
   unsigned int mx, my;
   costmap->worldToMap(start.pose.position.x, start.pose.position.y, mx, my);
   double orientation = tf2::getYaw(start.pose.orientation);
-  _a_star->setStart(mx, my, static_cast<unsigned int>(orientation / _angle_bin_size));
+  _a_star->setStart(mx, my, static_cast<unsigned int>(floor(orientation / _angle_bin_size)));
 
   // Set goal point
   costmap->worldToMap(goal.pose.position.x, goal.pose.position.y, mx, my);
   orientation = tf2::getYaw(start.pose.orientation);
-  _a_star->setGoal(mx, my, static_cast<unsigned int>(orientation / _angle_bin_size));
+  _a_star->setGoal(mx, my, static_cast<unsigned int>(floor(orientation / _angle_bin_size)));
 
   // Setup message
   nav_msgs::msg::Path plan;
@@ -348,9 +347,7 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
     path_world.push_back(getWorldCoords(path[i].x, path[i].y, costmap));
     pose.pose.position.x = path_world.back().x();
     pose.pose.position.y = path_world.back().y();
-    tf2::Quaternion q;
-    q.setEuler(0.0, 0.0, path[i].theta * _angle_bin_size);  // theta is in continuous bin coordinates
-    pose.pose.orientation = tf2::toMsg(q);
+    pose.pose.orientation = getWorldOrientation(path[i].theta);
     plan.poses.push_back(pose);
   }
 
@@ -394,7 +391,7 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
       pose.pose.position.x = path_world[i][0];
       pose.pose.position.y = path_world[i][1];
       plan.poses[i] = pose;
-      // TODO orientation from tangent
+      // TODO(stevemacenski): Add orientation from tangent of path
     }
     _smoothed_plan_publisher->publish(plan);
   }
@@ -416,7 +413,7 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
     pose.pose.position.x = path_world[i][0];
     pose.pose.position.y = path_world[i][1];
     plan.poses[i] = pose;
-    // TODO orientation from tangent
+    // TODO(stevemacenski): Add orientation from tangent of path
   }
 
   return plan;
@@ -438,11 +435,20 @@ void SmacPlanner::removeHook(std::vector<Eigen::Vector2d> & path)
 Eigen::Vector2d SmacPlanner::getWorldCoords(
   const float & mx, const float & my, const nav2_costmap_2d::Costmap2D * costmap)
 {
+  // mx, my are in continuous grid coordinates, must convert to world coordinates
   double world_x = 
     static_cast<double>(costmap->getOriginX()) + (mx + 0.5) * costmap->getResolution();
   double world_y =
     static_cast<double>(costmap->getOriginY()) + (my + 0.5) * costmap->getResolution();
   return Eigen::Vector2d(world_x, world_y);
+}
+
+geometry_msgs::msg::Quaternion SmacPlanner::getWorldOrientation(const float & theta)
+{
+  // theta is in continuous bin coordinates, must convert to world orientation
+  tf2::Quaternion q;
+  q.setEuler(0.0, 0.0, theta * _angle_bin_size);
+  return tf2::toMsg(q);
 }
 
 }  // namespace smac_planner

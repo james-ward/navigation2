@@ -97,6 +97,13 @@ public:
     const float & mx, const float & my, const nav2_costmap_2d::Costmap2D * costmap);
 
   /**
+   * @brief Create quaternion from A* coord bins
+   * @param theta continuous bin coordinates angle
+   * @return quaternion orientation in map frame
+   */
+  geometry_msgs::msg::Quaternion getWorldOrientation(const float & theta);
+
+  /**
    * @brief Remove hooking at end of paths
    * @param path Path to remove hooking from
    */

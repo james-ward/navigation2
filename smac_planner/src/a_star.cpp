@@ -176,7 +176,10 @@ void AStarAlgorithm<NodeSE2>::setStart(
 {
   unsigned int index = NodeSE2::getIndex(mx, my, theta, getSizeX(), getSizeDim3());
   _start = & _graph->operator[](index);
-  _start->setPose(Coordinates(mx, my, theta));
+  _start->setPose(Coordinates(
+    static_cast<float>(mx),
+    static_cast<float>(my),
+    static_cast<float>(theta)));
 }
 
 template <>
@@ -202,7 +205,10 @@ void AStarAlgorithm<NodeSE2>::setGoal(
 {
   unsigned int index = NodeSE2::getIndex(mx, my, theta, getSizeX(), getSizeDim3());
   _goal = & _graph->operator[](index);
-  _goal_coordinates = NodeSE2::Coordinates(mx, my, theta);
+  _goal_coordinates = NodeSE2::Coordinates(
+    static_cast<float>(mx),
+    static_cast<float>(my),
+    static_cast<float>(theta));
 }
 
 template<typename NodeT>
@@ -370,11 +376,8 @@ bool AStarAlgorithm<NodeSE2>::backtracePath(NodePtr & node, CoordinateVector & p
 
   NodePtr current_node = node;
 
-  // TODO(stevemacenski): return orientation (important?)
-  // TODO: deal with rotations in place should be a node or cull b/c no orientation info?
   while (current_node->parent) {
-    const Coordinates node_continuous_pose = current_node->pose;
-    path.push_back(node_continuous_pose);
+    path.push_back(current_node->pose);
     current_node = current_node->parent;
   }
 
