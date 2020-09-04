@@ -119,7 +119,7 @@ protected:
   std::string _global_frame, _name;
   float _tolerance;
   int _downsampling_factor;
-  int _angle_quantizations;
+  unsigned int _angle_quantizations;
   double _angle_bin_size;
   bool _downsample_costmap;
   rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>::SharedPtr _raw_plan_publisher;

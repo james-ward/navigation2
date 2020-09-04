@@ -282,16 +282,24 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
     _angle_quantizations,
     char_costmap);
 
-  // Set starting point
+  // Set starting point, in A* bin search coordinates
   unsigned int mx, my;
   costmap->worldToMap(start.pose.position.x, start.pose.position.y, mx, my);
-  double orientation = tf2::getYaw(start.pose.orientation);
-  _a_star->setStart(mx, my, static_cast<unsigned int>(floor(orientation / _angle_bin_size)));
+  double orientation_bin = tf2::getYaw(start.pose.orientation) / _angle_bin_size;
+  while (orientation_bin < 0.0) {
+    orientation_bin += static_cast<float>(_angle_quantizations);
+  }
+  unsigned int orientation_bin_id = static_cast<unsigned int>(floor(orientation_bin));
+  _a_star->setStart(mx, my, orientation_bin_id);
 
-  // Set goal point
+  // Set goal point, in A* bin search coordinates
   costmap->worldToMap(goal.pose.position.x, goal.pose.position.y, mx, my);
-  orientation = tf2::getYaw(start.pose.orientation);
-  _a_star->setGoal(mx, my, static_cast<unsigned int>(floor(orientation / _angle_bin_size)));
+  orientation_bin = tf2::getYaw(goal.pose.orientation) / _angle_bin_size;
+  while (orientation_bin < 0.0) {
+    orientation_bin += static_cast<float>(_angle_quantizations);
+  }
+  orientation_bin_id = static_cast<unsigned int>(floor(orientation_bin));
+  _a_star->setGoal(mx, my, orientation_bin_id);
 
   // Setup message
   nav_msgs::msg::Path plan;
@@ -447,7 +455,7 @@ geometry_msgs::msg::Quaternion SmacPlanner::getWorldOrientation(const float & th
 {
   // theta is in continuous bin coordinates, must convert to world orientation
   tf2::Quaternion q;
-  q.setEuler(0.0, 0.0, theta * _angle_bin_size);
+  q.setEuler(0.0, 0.0, theta * static_cast<double>(_angle_bin_size));
   return tf2::toMsg(q);
 }
 

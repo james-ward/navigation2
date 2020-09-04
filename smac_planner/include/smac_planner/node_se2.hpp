@@ -70,6 +70,8 @@ struct MotionTable
   MotionPoses projections;
   unsigned int size_x;
   unsigned int num_angle_quantization;
+  float num_angle_quantization_float;
+  float bin_size;
 };
 
 /**
@@ -92,30 +94,6 @@ public:
     Coordinates(const float & x_in, const float & y_in, const float & theta_in)
     : x(x_in), y(y_in), theta(theta_in)
     {};
-
-  /**
-   * @brief operator+ for addition
-   * @param MotionPose right hand side reference
-   * @return Added MotionPose and Coordinate
-   */
-    MotionPose operator+(const MotionPose & motion_model)
-    {
-      // TODO transform delta X, Y, and Theta into local coordinates
-      const float cos_theta = cos(theta);
-      const float sin_theta = sin(theta);
-      const float delta_x = motion_model._x * cos_theta - motion_model._y * sin_theta;
-      const float delta_y = motion_model._x * sin_theta + motion_model._y * cos_theta;
-      float new_heading = theta + motion_model._theta;
-
-      // TODO normalize theta - by number of bins
-      if (new_heading >= 72.0) {
-        new_heading -= 72.0;
-      } else if (new_heading < 0.0) {
-        new_heading += 72.0;
-      }
-
-      return MotionPose(delta_x + x, delta_y + y, new_heading);
-    }
 
     float x, y, theta;
   };

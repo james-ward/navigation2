@@ -54,7 +54,6 @@ void SmacPlanner2D::configure(
   bool allow_unknown;
   int max_iterations;
   int max_on_approach_iterations;
-  int angle_quantizations;
   float travel_cost_scale;
   bool smooth_path;
   bool upsample_path;

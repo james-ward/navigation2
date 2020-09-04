@@ -37,6 +37,7 @@ void MotionTable::initDubin(
 {
   size_x = size_x_in;
   num_angle_quantization = num_angle_quantization_in;
+  num_angle_quantization_float = static_cast<float>(num_angle_quantization);
 
   // angle must meet 3 requirements:
   // 1) be increment of quantized bin size
@@ -119,30 +120,33 @@ void MotionTable::initBalkcomMason(
   unsigned int & size_x_in,
   unsigned int & num_angle_quantization_in)
 {
-  // square root of two arc length used to ensure leaving current cell
-  const float sqrt_2 = sqrt(2.0);
+  // // square root of two arc length used to ensure leaving current cell
+  // const float sqrt_2 = sqrt(2.0);
+  // num_angle_quantization_float = static_cast<float>(num_angle_quantization);
 
-  size_x = size_x_in;
-  num_angle_quantization = num_angle_quantization_in;
-  const float delta_angle =
-    2.0f * static_cast<float>(M_PI) / static_cast<float>(num_angle_quantization);
+  // size_x = size_x_in;
+  // num_angle_quantization = num_angle_quantization_in;
+  // bin_size = 2.0f * static_cast<float>(M_PI) / num_angle_quantization_float;
 
-  projections.clear();
-  projections.reserve(8);
-  projections.emplace_back(sqrt_2, 0.0, 0.0);  // Forward
-  projections.emplace_back(-sqrt_2, 0.0, 0.0);  // Backward
-  projections.emplace_back(0.0, 0.0, delta_angle);  // Spin left
-  projections.emplace_back(0.0, 0.0, -delta_angle);  // Spin right
-  projections.emplace_back(sqrt_2, 0.0, delta_angle);  // Spin left + Forward
-  projections.emplace_back(-sqrt_2, 0.0, delta_angle);  // Spin left + Backward
-  projections.emplace_back(sqrt_2, 0.0, -delta_angle);  // Spin right + Forward
-  projections.emplace_back(-sqrt_2, 0.0, -delta_angle);  // Spin right + Backward
+  // const float delta_angle =
+  //   2.0f * static_cast<float>(M_PI) / num_angle_quantization_float;
+
+  // projections.clear();
+  // projections.reserve(8);
+  // projections.emplace_back(sqrt_2, 0.0, 0.0);  // Forward
+  // projections.emplace_back(-sqrt_2, 0.0, 0.0);  // Backward
+  // projections.emplace_back(0.0, 0.0, delta_angle);  // Spin left
+  // projections.emplace_back(0.0, 0.0, -delta_angle);  // Spin right
+  // projections.emplace_back(sqrt_2, 0.0, delta_angle);  // Spin left + Forward
+  // projections.emplace_back(-sqrt_2, 0.0, delta_angle);  // Spin left + Backward
+  // projections.emplace_back(sqrt_2, 0.0, -delta_angle);  // Spin right + Forward
+  // projections.emplace_back(-sqrt_2, 0.0, -delta_angle);  // Spin right + Backward
 }
 
 MotionPoses MotionTable::getProjections(NodeSE2 * & node)
 {
   MotionPoses projection_list;
-  for (uint i = 0; i != projections.size(); i++) {
+  for (unsigned int i = 0; i != projections.size(); i++) {
     projection_list.push_back(getProjection(node, i));
   }
 
@@ -151,7 +155,25 @@ MotionPoses MotionTable::getProjections(NodeSE2 * & node)
 
 MotionPose MotionTable::getProjection(NodeSE2 * & node, const unsigned int & motion_index)
 {
-  return node->pose + projections[motion_index];
+  const MotionPose & motion_model = projections[motion_index];
+
+  // transform delta X, Y, and Theta into local coordinates
+  const float & node_heading = node->pose.theta;
+  const float cos_theta = cos(node_heading * bin_size);  // needs actual angle [0, 2PI]
+  const float sin_theta = sin(node_heading * bin_size);
+  const float delta_x = motion_model._x * cos_theta - motion_model._y * sin_theta;
+  const float delta_y = motion_model._x * sin_theta + motion_model._y * cos_theta;
+  float new_heading = node_heading + motion_model._theta;
+
+  // normalize theta
+  while (new_heading >= num_angle_quantization_float) {
+    new_heading -= num_angle_quantization_float;
+  }
+  while (new_heading < 0.0) {
+    new_heading += num_angle_quantization_float;
+  }
+  
+  return MotionPose(delta_x + node->pose.x, delta_y + node->pose.y, new_heading);
 }
 
 NodeSE2::NodeSE2(unsigned char & cost_in, const unsigned int index)
@@ -242,11 +264,11 @@ void NodeSE2::getNeighbors(
   std::function<bool(const unsigned int&, smac_planner::NodeSE2*&)> & validityCheckerFunctor,
   NodeVector & neighbors)
 {
-  int index;
+  unsigned int index;
   NodePtr neighbor = nullptr;
   const MotionPoses motion_projections = _motion_model.getProjections(node);
 
-  for(unsigned int i = 0; i != motion_projections.size(); ++i) {
+  for(unsigned int i = 0; i != motion_projections.size(); i++) {
     index = NodeSE2::getIndex(
       static_cast<unsigned int>(motion_projections[i]._x),
       static_cast<unsigned int>(motion_projections[i]._y),
