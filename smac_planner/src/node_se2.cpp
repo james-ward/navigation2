@@ -49,17 +49,19 @@ void MotionTable::initDubin(
   //
   // chord >= sqrt(2) >= 2 * R * sin (angle / 2); where angle / N = quantized bin size
   // Thusly: angle <= 2.0 * asin(sqrt(2) / (2 * R))
-  float angle = 2.0 * asin(sqrt_2 / (2 * min_turning_radius));
+  float angle = 2.0 * asin(sqrt(2.0) / (2 * min_turning_radius));
   // Now make sure angle is an increment of the quantized bin size
   // And since its based on the minimum chord, we need to make sure its always larger
-  const float bin_size =
+  bin_size =
     2.0f * static_cast<float>(M_PI) / static_cast<float>(num_angle_quantization);
+  float increments;
   if (angle < bin_size) {
+    increments = 1.0f;
     angle = bin_size;
-  } else if (angle > bin_size) {
-    const int increments = ceil(angle / bin_size);
-    angle = bin_size * increments;
   }
+
+  // Search dimensions not promised to be clean multiples of quantization
+  increments = angle / bin_size;
 
   // find deflections
   // If we make a right triangle out of the chord in circle of radius
@@ -86,30 +88,31 @@ void MotionTable::initReedsShepp(
   unsigned int & num_angle_quantization_in,
   float & min_turning_radius)
 {
-  size_x = size_x_in;
-  num_angle_quantization = num_angle_quantization_in;
+  // size_x = size_x_in;
+  // num_angle_quantization = num_angle_quantization_in;
+  // num_angle_quantization_float = static_cast<float>(num_angle_quantization);
 
-  const float sqrt_2 = sqrt(2.0);
-  float angle = 2.0 * asin(sqrt_2 / (2 * min_turning_radius));
-  const float bin_size =
-    2.0f * static_cast<float>(M_PI) / static_cast<float>(num_angle_quantization);
-  if (angle < bin_size) {
-    angle = bin_size;
-  } else if (angle > bin_size) {
-    const int increments = ceil(angle / bin_size);
-    angle = bin_size * increments;
-  }
-  float delta_x = min_turning_radius * sin(angle);
-  float delta_y = (min_turning_radius * cos(angle)) - min_turning_radius;
+  // const float sqrt_2 = sqrt(2.0);
+  // float angle = 2.0 * asin(sqrt_2 / (2 * min_turning_radius));
+  // bin_size =
+  //   2.0f * static_cast<float>(M_PI) / static_cast<float>(num_angle_quantization);
+  // if (angle < bin_size) {
+  //   angle = bin_size;
+  // } else if (angle > bin_size) {
+  //   const int increments = ceil(angle / bin_size);
+  //   angle = bin_size * increments;
+  // }
+  // float delta_x = min_turning_radius * sin(angle);
+  // float delta_y = (min_turning_radius * cos(angle)) - min_turning_radius;
 
-  projections.clear();
-  projections.reserve(6);
-  projections.emplace_back(hypotf(delta_x, delta_y), 0.0, 0.0);  // Forward
-  projections.emplace_back(delta_x, delta_y, angle);  // Forward + Left
-  projections.emplace_back(delta_x, -delta_y, -angle);  // Forward + Right
-  projections.emplace_back(-hypotf(delta_x, delta_y), 0.0, 0.0);  // Backward
-  projections.emplace_back(-delta_x, delta_y, angle);  // Backward + Left
-  projections.emplace_back(-delta_x, -delta_y, -angle);  // Backward + Right
+  // projections.clear();
+  // projections.reserve(6);
+  // projections.emplace_back(hypotf(delta_x, delta_y), 0.0, 0.0);  // Forward
+  // projections.emplace_back(delta_x, delta_y, angle);  // Forward + Left
+  // projections.emplace_back(delta_x, -delta_y, -angle);  // Forward + Right
+  // projections.emplace_back(-hypotf(delta_x, delta_y), 0.0, 0.0);  // Backward
+  // projections.emplace_back(-delta_x, delta_y, angle);  // Backward + Left
+  // projections.emplace_back(-delta_x, -delta_y, -angle);  // Backward + Right
 }
 
 // http://planning.cs.uiuc.edu/node823.html
