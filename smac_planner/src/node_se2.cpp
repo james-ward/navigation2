@@ -81,38 +81,36 @@ void MotionTable::initDubin(
 // http://planning.cs.uiuc.edu/node822.html
 // Same as Dubin model but now reverse is valid
 // See notes in Dubin for explanation
-// TODO update reeds shepp and balkcom mason based on Dubin outcome 
-// TODO make sure operator+ handles backwards OK
 void MotionTable::initReedsShepp(
   unsigned int & size_x_in,
   unsigned int & num_angle_quantization_in,
   float & min_turning_radius)
 {
-  // size_x = size_x_in;
-  // num_angle_quantization = num_angle_quantization_in;
-  // num_angle_quantization_float = static_cast<float>(num_angle_quantization);
+  size_x = size_x_in;
+  num_angle_quantization = num_angle_quantization_in;
+  num_angle_quantization_float = static_cast<float>(num_angle_quantization);
 
-  // const float sqrt_2 = sqrt(2.0);
-  // float angle = 2.0 * asin(sqrt_2 / (2 * min_turning_radius));
-  // bin_size =
-  //   2.0f * static_cast<float>(M_PI) / static_cast<float>(num_angle_quantization);
-  // if (angle < bin_size) {
-  //   angle = bin_size;
-  // } else if (angle > bin_size) {
-  //   const int increments = ceil(angle / bin_size);
-  //   angle = bin_size * increments;
-  // }
-  // float delta_x = min_turning_radius * sin(angle);
-  // float delta_y = (min_turning_radius * cos(angle)) - min_turning_radius;
+  float angle = 2.0 * asin(sqrt(2.0) / (2 * min_turning_radius));
+  bin_size =
+    2.0f * static_cast<float>(M_PI) / static_cast<float>(num_angle_quantization);
+  float increments;
+  if (angle < bin_size) {
+    increments = 1.0f;
+    angle = bin_size;
+  }
 
-  // projections.clear();
-  // projections.reserve(6);
-  // projections.emplace_back(hypotf(delta_x, delta_y), 0.0, 0.0);  // Forward
-  // projections.emplace_back(delta_x, delta_y, angle);  // Forward + Left
-  // projections.emplace_back(delta_x, -delta_y, -angle);  // Forward + Right
-  // projections.emplace_back(-hypotf(delta_x, delta_y), 0.0, 0.0);  // Backward
-  // projections.emplace_back(-delta_x, delta_y, angle);  // Backward + Left
-  // projections.emplace_back(-delta_x, -delta_y, -angle);  // Backward + Right
+  increments = angle / bin_size;
+  float delta_x = min_turning_radius * sin(angle);
+  float delta_y = min_turning_radius - (min_turning_radius * cos(angle));
+
+  projections.clear();
+  projections.reserve(6);
+  projections.emplace_back(hypotf(delta_x, delta_y), 0.0, 0.0);  // Forward
+  projections.emplace_back(delta_x, delta_y, increments);  // Forward + Left
+  projections.emplace_back(delta_x, -delta_y, -increments);  // Forward + Right
+  projections.emplace_back(-hypotf(delta_x, delta_y), 0.0, 0.0);  // Backward
+  projections.emplace_back(-delta_x, delta_y, -increments);  // Backward + Left
+  projections.emplace_back(-delta_x, -delta_y, increments);  // Backward + Right
 }
 
 // http://planning.cs.uiuc.edu/node823.html
@@ -123,27 +121,30 @@ void MotionTable::initBalkcomMason(
   unsigned int & size_x_in,
   unsigned int & num_angle_quantization_in)
 {
-  // // square root of two arc length used to ensure leaving current cell
-  // const float sqrt_2 = sqrt(2.0);
-  // num_angle_quantization_float = static_cast<float>(num_angle_quantization);
+  size_x = size_x_in;
+  num_angle_quantization = num_angle_quantization_in;
+  num_angle_quantization_float = static_cast<float>(num_angle_quantization);
 
-  // size_x = size_x_in;
-  // num_angle_quantization = num_angle_quantization_in;
-  // bin_size = 2.0f * static_cast<float>(M_PI) / num_angle_quantization_float;
+  bin_size =
+    2.0f * static_cast<float>(M_PI) / static_cast<float>(num_angle_quantization);
 
-  // const float delta_angle =
-  //   2.0f * static_cast<float>(M_PI) / num_angle_quantization_float;
+  // square root of two arc length used to ensure leaving current cell
+  const float sqrt_2 = sqrt(2.0);
 
-  // projections.clear();
-  // projections.reserve(8);
-  // projections.emplace_back(sqrt_2, 0.0, 0.0);  // Forward
-  // projections.emplace_back(-sqrt_2, 0.0, 0.0);  // Backward
-  // projections.emplace_back(0.0, 0.0, delta_angle);  // Spin left
-  // projections.emplace_back(0.0, 0.0, -delta_angle);  // Spin right
-  // projections.emplace_back(sqrt_2, 0.0, delta_angle);  // Spin left + Forward
-  // projections.emplace_back(-sqrt_2, 0.0, delta_angle);  // Spin left + Backward
-  // projections.emplace_back(sqrt_2, 0.0, -delta_angle);  // Spin right + Forward
-  // projections.emplace_back(-sqrt_2, 0.0, -delta_angle);  // Spin right + Backward
+  // if we move sqrt(2) and an angle at the same time, there's a Y deflection
+  const float delta_y = sqrt_2 * sin(bin_size);
+  const float delta_x = sqrt_2 * cos(bin_size);
+
+  projections.clear();
+  projections.reserve(8);
+  projections.emplace_back(sqrt_2, 0.0, 0.0);  // Forward
+  projections.emplace_back(-sqrt_2, 0.0, 0.0);  // Backward
+  projections.emplace_back(0.0, 0.0, 1);  // Spin left
+  projections.emplace_back(0.0, 0.0, -1);  // Spin right
+  projections.emplace_back(delta_x, delta_y, 1);  // Spin left + Forward
+  projections.emplace_back(-delta_x, delta_y, -1);  // Spin left + Backward
+  projections.emplace_back(delta_x, -delta_y, -1);  // Spin right + Forward
+  projections.emplace_back(-sqrt_2, -delta_y, 1);  // Spin right + Backward
 }
 
 MotionPoses MotionTable::getProjections(NodeSE2 * & node)

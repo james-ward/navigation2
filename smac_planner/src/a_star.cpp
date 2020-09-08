@@ -332,7 +332,8 @@ bool AStarAlgorithm<NodeT>::createPath(CoordinateVector & path, int & iterations
         neighbor->parent = current_node;
 
         // 4.3) If not in queue or visited, add it
-        if (!neighbor->wasVisited()) {
+        // TODO(stevemacenski): should this always be true?
+        if (true /*!neighbor->wasVisited()*/) {
           neighbor->queued();
           addNode(g_cost + getHeuristicCost(neighbor), neighbor);
         }
