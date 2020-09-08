@@ -110,7 +110,7 @@ public:
   void createGraph(
     const unsigned int & x,
     const unsigned int & y,
-    const unsigned int & theta,
+    const unsigned int & dim_3,
     unsigned char * & costs);
 
   /**
@@ -120,7 +120,7 @@ public:
   void setGoal(
     const unsigned int & mx,
     const unsigned int & my,
-    const unsigned int & theta);
+    const unsigned int & dim_3);
 
   /**
    * @brief Set the starting pose for planning, as a node index
@@ -129,7 +129,7 @@ public:
   void setStart(
     const unsigned int & mx,
     const unsigned int & my,
-    const unsigned int & theta);
+    const unsigned int & dim_3);
 
   /**
    * @brief Set the starting pose for planning, as a node index

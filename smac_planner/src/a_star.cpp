@@ -86,14 +86,14 @@ template <>
 void AStarAlgorithm<Node2D>::createGraph(
   const unsigned int & x_size,
   const unsigned int & y_size,
-  const unsigned int & theta_size,
+  const unsigned int & dim_3_size,
   unsigned char * & costs)
 {
-  if (theta_size != 1) {
-    throw std::runtime_error("Node type Node2D cannot be given non-1 angle quantization.");
+  if (dim_3_size != 1) {
+    throw std::runtime_error("Node type Node2D cannot be given non-1 dim 3 quantization.");
   }
 
-  _dim3_size = theta_size;  // 2D search MUST be 2D, not 3D or SE2.
+  _dim3_size = dim_3_size;  // 2D search MUST be 2D, not 3D or SE2.
 
   if (getSizeX() != x_size || getSizeY() != y_size) {
     _x_size = x_size;
@@ -112,15 +112,15 @@ void AStarAlgorithm<Node2D>::createGraph(
   }
 }
 
-// Population order theta, X, Y to match getIndex expected structure
+// Population order dim_3, X, Y to match getIndex expected structure
 template <>
 void AStarAlgorithm<NodeSE2>::createGraph(
   const unsigned int & x_size,
   const unsigned int & y_size,
-  const unsigned int & theta_size,
+  const unsigned int & dim_3_size,
   unsigned char * & costs)
 {
-  _dim3_size = theta_size;
+  _dim3_size = dim_3_size;
   unsigned int index;
 
   if (getSizeX() != x_size || getSizeY() != y_size) {
@@ -159,10 +159,10 @@ template <>
 void AStarAlgorithm<Node2D>::setStart(
   const unsigned int & mx,
   const unsigned int & my,
-  const unsigned int & theta)
+  const unsigned int & dim_3)
 {
-  if (theta != 0) {
-    throw std::runtime_error("Node type Node2D cannot be given non-zero starting angle.");
+  if (dim_3 != 0) {
+    throw std::runtime_error("Node type Node2D cannot be given non-zero starting dim 3.");
   }
   unsigned int index = Node2D::getIndex(mx, my, getSizeX());
   _start = & _graph->operator[](index);
@@ -172,24 +172,24 @@ template <>
 void AStarAlgorithm<NodeSE2>::setStart(
   const unsigned int & mx,
   const unsigned int & my,
-  const unsigned int & theta)
+  const unsigned int & dim_3)
 {
-  unsigned int index = NodeSE2::getIndex(mx, my, theta, getSizeX(), getSizeDim3());
+  unsigned int index = NodeSE2::getIndex(mx, my, dim_3, getSizeX(), getSizeDim3());
   _start = & _graph->operator[](index);
   _start->setPose(Coordinates(
     static_cast<float>(mx),
     static_cast<float>(my),
-    static_cast<float>(theta)));
+    static_cast<float>(dim_3)));
 }
 
 template <>
 void AStarAlgorithm<Node2D>::setGoal(
   const unsigned int & mx,
   const unsigned int & my,
-  const unsigned int & theta)
+  const unsigned int & dim_3)
 {
-  if (theta != 0) {
-    throw std::runtime_error("Node type Node2D cannot be given non-zero goal angle.");
+  if (dim_3 != 0) {
+    throw std::runtime_error("Node type Node2D cannot be given non-zero goal dim 3.");
   }
 
   unsigned int index = Node2D::getIndex(mx, my, getSizeX());
@@ -201,14 +201,14 @@ template <>
 void AStarAlgorithm<NodeSE2>::setGoal(
   const unsigned int & mx,
   const unsigned int & my,
-  const unsigned int & theta)
+  const unsigned int & dim_3)
 {
-  unsigned int index = NodeSE2::getIndex(mx, my, theta, getSizeX(), getSizeDim3());
+  unsigned int index = NodeSE2::getIndex(mx, my, dim_3, getSizeX(), getSizeDim3());
   _goal = & _graph->operator[](index);
   _goal_coordinates = NodeSE2::Coordinates(
     static_cast<float>(mx),
     static_cast<float>(my),
-    static_cast<float>(theta));
+    static_cast<float>(dim_3));
 }
 
 template<typename NodeT>
