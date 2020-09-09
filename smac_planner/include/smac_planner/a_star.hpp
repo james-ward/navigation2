@@ -102,7 +102,7 @@ public:
 
   /**
    * @brief Create the graph based on the node type. For 2D nodes, a cost grid.
-   *   For 3D nodes, a SE2 grid without cost info as needs collision detector for footprint. 
+   *   For 3D nodes, a SE2 grid without cost info as needs collision detector for footprint.
    * @param x The total number of nodes in the X direction
    * @param y The total number of nodes in the X direction
    * @param costs unsigned char * to the costs in the graph
@@ -201,7 +201,7 @@ private:
   inline bool areInputsValid();
 
   /**
-   * @brief Get maximum number of on-approach iterations after within threshold 
+   * @brief Get maximum number of on-approach iterations after within threshold
    * @return Reference to Maximum on-appraoch iterations parameter
    */
   inline int & getOnApproachMaxIterations();

@@ -14,14 +14,14 @@
 
 // benefits list:
 //  - for tolerance, only search once (max iterations on appraoch meeting tolerance), if set tol low and iterations low then can use to actually compute to a scale before target
-//      e.g. compute for the next ~N meters only on way towards something 
+//      e.g. compute for the next ~N meters only on way towards something
 //  - Against NavFns: we have inflation + dynamic processing: cached gradiant map not used. reusibility, cannot be built on for nonholonomic, no looping or weird artifacts
 //  - common building blocks for use in all planners to maximize reliability, stress test, and reduce likelihood of bugs
 //  - not searching then backtracing with grad descent for 2x go through
 //  - lower memory (?) and faster (?)
 //  - modern data structures & carefully optimized & generic for use in other planning problems
 //  - generic smoother that has applications to anything
-//  - smoother costmap aware (vs bezier, splines, b-splines, etc) 
+//  - smoother costmap aware (vs bezier, splines, b-splines, etc)
 //  - caching paths rather than recomputing needlessly if they're still good
 //  - network planner & arbitrary nonholonomic including ackermann
 //  - non-circular footprints, diff/omni/ackermann, covering all classes of ground robots. circl diff/omni A*, ackerman hybrid, arbitrary diff/omni A* if relatively small, hybrid is large
@@ -35,7 +35,7 @@
 //  - Identified 3 math errors of Thrun
 //  - show and explain derivations on smoother / upsampler. Show and explain hybrid stuff
 // Lets look at what we ahve here:
-//   We have A* path smoothed to kinematic paramrters. Even without explicit modelling of ackermann or limited curvature kinematics, you can get it here. In fact, while a little hand wavey, if you plan in a full potential field with default settings, it steers intentionally in the center of spaces. If that space is built for a robot or vehicle (eg road, or aisle, or open space, or office) then you’re pseduo-promised that the curvature can be valid for your vehicle. Now the then the boundry conditions (initial and final state) are not. For alot of cases thats sufficient bc of an intelligent local planner based on dubin curves or something, but if not, we have a full hybrid A* as well. 
+//   We have A* path smoothed to kinematic paramrters. Even without explicit modelling of ackermann or limited curvature kinematics, you can get it here. In fact, while a little hand wavey, if you plan in a full potential field with default settings, it steers intentionally in the center of spaces. If that space is built for a robot or vehicle (eg road, or aisle, or open space, or office) then you’re pseduo-promised that the curvature can be valid for your vehicle. Now the then the boundry conditions (initial and final state) are not. For alot of cases thats sufficient bc of an intelligent local planner based on dubin curves or something, but if not, we have a full hybrid A* as well.
 //   Ex of robot to limit curvature: industrial for max speed without dumping load, ackermann, legged to prop forward to minimize slow down for off acis motion, diff to not whip around
 //  Show path, no map -- Show term smoothing, lovely, no map -- Then map, welp, thats useless
 
@@ -43,16 +43,16 @@
 
 // if collision in smoothed path, anchor that point and then re-run until successful (helpful in narrow spaces).
 
-// NOTES 
+// NOTES
 // way to do collision checking on oriented footprint https://github.com/windelbouwman/move-base-ompl/blob/master/src/ompl_global_planner.cpp#L133 (but doesnt cache)
 // https://github.com/ompl/ompl/blob/master/demos/GeometricCarPlanning.cpp for reeds/dubin hybrid. There's also a 2D point to point demo that could be helpful.
 // optimization flags -03
 // max iterations on approach only for 2D, not for SE2
 
-// In fact, I use that smoother in the A* implementation to make it "smooth" so its not grid-blocky. 
+// In fact, I use that smoother in the A* implementation to make it "smooth" so its not grid-blocky.
 // Its actually how I tested the smoother since that's the nuclear case with tons of sharp random angles.
-// People are used to these smooth paths from Navigation Function approaches and I'm not sure anyone would be 
-// happy if I just gave them a A* without it. Its stil quite fast but its much faster than NavFn without the smoother. 
+// People are used to these smooth paths from Navigation Function approaches and I'm not sure anyone would be
+// happy if I just gave them a A* without it. Its stil quite fast but its much faster than NavFn without the smoother.
 // If you have a half decent controller though, its largely unneeded (I tested, its fine, its just not visually appealing).
 
 
@@ -113,14 +113,14 @@ void SmacPlanner::configure(
     _node, name + ".tolerance", rclcpp::ParameterValue(0.125));
   _tolerance = static_cast<float>(_node->get_parameter(name + ".tolerance").as_double());
   nav2_util::declare_parameter_if_not_declared(
-          _node, name + ".downsample_costmap", rclcpp::ParameterValue(true));
+    _node, name + ".downsample_costmap", rclcpp::ParameterValue(true));
   _node->get_parameter(name + ".downsample_costmap", _downsample_costmap);
   nav2_util::declare_parameter_if_not_declared(
-          _node, name + ".downsampling_factor", rclcpp::ParameterValue(1));
+    _node, name + ".downsampling_factor", rclcpp::ParameterValue(1));
   _node->get_parameter(name + ".downsampling_factor", _downsampling_factor);
-  
+
   nav2_util::declare_parameter_if_not_declared(
-          _node, name + ".angle_quantization_bins", rclcpp::ParameterValue(1));
+    _node, name + ".angle_quantization_bins", rclcpp::ParameterValue(1));
   _node->get_parameter(name + ".angle_quantization_bins", angle_quantizations);
   _angle_bin_size = 2.0 * M_PI / angle_quantizations;
   _angle_quantizations = static_cast<unsigned int>(angle_quantizations);
@@ -153,20 +153,23 @@ void SmacPlanner::configure(
   _node->get_parameter(name + ".motion_model_for_search", motion_model_for_search);
   MotionModel motion_model = fromString(motion_model_for_search);
   if (motion_model == MotionModel::UNKNOWN) {
-    RCLCPP_WARN(_node->get_logger(),
+    RCLCPP_WARN(
+      _node->get_logger(),
       "Unable to get MotionModel search type. Given '%s', "
       "valid options are MOORE, VON_NEUMANN, DUBIN, REEDS_SHEPP.",
       motion_model_for_search.c_str());
   }
 
   if (max_on_approach_iterations <= 0) {
-    RCLCPP_INFO(_node->get_logger(), "On approach iteration selected as <= 0, "
+    RCLCPP_INFO(
+      _node->get_logger(), "On approach iteration selected as <= 0, "
       "disabling tolerance and on approach iterations.");
     max_on_approach_iterations = std::numeric_limits<int>::max();
   }
 
   if (max_iterations <= 0) {
-    RCLCPP_INFO(_node->get_logger(), "maximum iteration selected as <= 0, "
+    RCLCPP_INFO(
+      _node->get_logger(), "maximum iteration selected as <= 0, "
       "disabling maximum iterations.");
     max_iterations = std::numeric_limits<int>::max();
   }
@@ -177,7 +180,8 @@ void SmacPlanner::configure(
   }
 
   if (_upsampling_ratio != 2 && _upsampling_ratio != 4) {
-    RCLCPP_WARN(_node->get_logger(),
+    RCLCPP_WARN(
+      _node->get_logger(),
       "Upsample ratio set to %i, only 2 and 4 are valid. Defaulting to 2.", _upsampling_ratio);
     _upsampling_ratio = 2;
   }
@@ -319,7 +323,7 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
   std::string error;
   try {
     if (!_a_star->createPath(
-      path, num_iterations, _tolerance / static_cast<float>(costmap->getResolution())))
+        path, num_iterations, _tolerance / static_cast<float>(costmap->getResolution())))
     {
       if (num_iterations < _a_star->getMaxIterations()) {
         error = std::string("no valid path found");
@@ -367,9 +371,9 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
   if (!_smoother) {
 #ifdef BENCHMARK_TESTING
     steady_clock::time_point b = steady_clock::now();
-    duration<double> time_span = duration_cast<duration<double> >(b-a);
+    duration<double> time_span = duration_cast<duration<double>>(b - a);
     cout << "It took " << time_span.count() * 1000 <<
-      " milliseconds with " << num_iterations << " iterations." <<  endl;
+      " milliseconds with " << num_iterations << " iterations." << endl;
 #endif
     return plan;
   }
@@ -383,7 +387,7 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
   MinimalCostmap mcmap(char_costmap, costmap->getSizeInCellsX(),
     costmap->getSizeInCellsY(), costmap->getOriginX(), costmap->getOriginY(),
     costmap->getResolution());
-  if (!_smoother->smooth(path_world, & mcmap, _smoother_params)) {
+  if (!_smoother->smooth(path_world, &mcmap, _smoother_params)) {
     RCLCPP_WARN(
       _node->get_logger(),
       "%s: failed to smooth plan, Ceres could not find a usable solution to optimize.",
@@ -406,8 +410,7 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
 
   // Upsample path
   if (_upsampler) {
-    if(!_upsampler->upsample(path_world, _smoother_params, _upsampling_ratio))
-    {
+    if (!_upsampler->upsample(path_world, _smoother_params, _upsampling_ratio)) {
       RCLCPP_WARN(
         _node->get_logger(),
         "%s: failed to upsample plan, Ceres could not find a usable solution to optimize.",
@@ -444,7 +447,7 @@ Eigen::Vector2d SmacPlanner::getWorldCoords(
   const float & mx, const float & my, const nav2_costmap_2d::Costmap2D * costmap)
 {
   // mx, my are in continuous grid coordinates, must convert to world coordinates
-  double world_x = 
+  double world_x =
     static_cast<double>(costmap->getOriginX()) + (mx + 0.5) * costmap->getResolution();
   double world_y =
     static_cast<double>(costmap->getOriginY()) + (my + 0.5) * costmap->getResolution();

@@ -64,10 +64,10 @@ void SmacPlanner2D::configure(
     _node, name + ".tolerance", rclcpp::ParameterValue(0.125));
   _tolerance = static_cast<float>(_node->get_parameter(name + ".tolerance").as_double());
   nav2_util::declare_parameter_if_not_declared(
-          _node, name + ".downsample_costmap", rclcpp::ParameterValue(true));
+    _node, name + ".downsample_costmap", rclcpp::ParameterValue(true));
   _node->get_parameter(name + ".downsample_costmap", _downsample_costmap);
   nav2_util::declare_parameter_if_not_declared(
-          _node, name + ".downsampling_factor", rclcpp::ParameterValue(1));
+    _node, name + ".downsampling_factor", rclcpp::ParameterValue(1));
   _node->get_parameter(name + ".downsampling_factor", _downsampling_factor);
 
   nav2_util::declare_parameter_if_not_declared(
@@ -97,20 +97,23 @@ void SmacPlanner2D::configure(
   _node->get_parameter(name + ".motion_model_for_search", motion_model_for_search);
   MotionModel motion_model = fromString(motion_model_for_search);
   if (motion_model == MotionModel::UNKNOWN) {
-    RCLCPP_WARN(_node->get_logger(),
+    RCLCPP_WARN(
+      _node->get_logger(),
       "Unable to get MotionModel search type. Given '%s', "
       "valid options are MOORE, VON_NEUMANN, DUBIN, REEDS_SHEPP.",
       motion_model_for_search.c_str());
   }
 
   if (max_on_approach_iterations <= 0) {
-    RCLCPP_INFO(_node->get_logger(), "On approach iteration selected as <= 0, "
+    RCLCPP_INFO(
+      _node->get_logger(), "On approach iteration selected as <= 0, "
       "disabling tolerance and on approach iterations.");
     max_on_approach_iterations = std::numeric_limits<int>::max();
   }
 
   if (max_iterations <= 0) {
-    RCLCPP_INFO(_node->get_logger(), "maximum iteration selected as <= 0, "
+    RCLCPP_INFO(
+      _node->get_logger(), "maximum iteration selected as <= 0, "
       "disabling maximum iterations.");
     max_iterations = std::numeric_limits<int>::max();
   }
@@ -121,13 +124,14 @@ void SmacPlanner2D::configure(
   }
 
   if (_upsampling_ratio != 2 && _upsampling_ratio != 4) {
-    RCLCPP_WARN(_node->get_logger(),
+    RCLCPP_WARN(
+      _node->get_logger(),
       "Upsample ratio set to %i, only 2 and 4 are valid. Defaulting to 2.", _upsampling_ratio);
     _upsampling_ratio = 2;
   }
-  std::cout << "hi"<< std::endl;
+  std::cout << "hi" << std::endl;
   _a_star = std::make_unique<AStarAlgorithm<Node2D>>(motion_model, 0.0f);
-  std::cout << "hi2"<< std::endl;
+  std::cout << "hi2" << std::endl;
   _a_star->initialize(
     travel_cost_scale,
     allow_unknown,
@@ -254,7 +258,7 @@ nav_msgs::msg::Path SmacPlanner2D::createPlan(
   std::string error;
   try {
     if (!_a_star->createPath(
-      path, num_iterations, _tolerance / static_cast<float>(costmap->getResolution())))
+        path, num_iterations, _tolerance / static_cast<float>(costmap->getResolution())))
     {
       if (num_iterations < _a_star->getMaxIterations()) {
         error = std::string("no valid path found");
@@ -301,9 +305,9 @@ nav_msgs::msg::Path SmacPlanner2D::createPlan(
   if (!_smoother) {
 #ifdef BENCHMARK_TESTING
     steady_clock::time_point b = steady_clock::now();
-    duration<double> time_span = duration_cast<duration<double> >(b-a);
+    duration<double> time_span = duration_cast<duration<double>>(b - a);
     cout << "It took " << time_span.count() * 1000 <<
-      " milliseconds with " << num_iterations << " iterations." <<  endl;
+      " milliseconds with " << num_iterations << " iterations." << endl;
 #endif
     return plan;
   }
@@ -317,7 +321,7 @@ nav_msgs::msg::Path SmacPlanner2D::createPlan(
   MinimalCostmap mcmap(char_costmap, costmap->getSizeInCellsX(),
     costmap->getSizeInCellsY(), costmap->getOriginX(), costmap->getOriginY(),
     costmap->getResolution());
-  if (!_smoother->smooth(path_world, & mcmap, _smoother_params)) {
+  if (!_smoother->smooth(path_world, &mcmap, _smoother_params)) {
     RCLCPP_WARN(
       _node->get_logger(),
       "%s: failed to smooth plan, Ceres could not find a usable solution to optimize.",
@@ -339,8 +343,7 @@ nav_msgs::msg::Path SmacPlanner2D::createPlan(
 
   // Upsample path
   if (_upsampler) {
-    if(!_upsampler->upsample(path_world, _smoother_params, _upsampling_ratio))
-    {
+    if (!_upsampler->upsample(path_world, _smoother_params, _upsampling_ratio)) {
       RCLCPP_WARN(
         _node->get_logger(),
         "%s: failed to upsample plan, Ceres could not find a usable solution to optimize.",
@@ -375,7 +378,7 @@ void SmacPlanner2D::removeHook(std::vector<Eigen::Vector2d> & path)
 Eigen::Vector2d SmacPlanner2D::getWorldCoords(
   const float & mx, const float & my, const nav2_costmap_2d::Costmap2D * costmap)
 {
-  float world_x = 
+  float world_x =
     static_cast<float>(costmap->getOriginX()) + (mx + 0.5) * costmap->getResolution();
   float world_y =
     static_cast<float>(costmap->getOriginY()) + (my + 0.5) * costmap->getResolution();

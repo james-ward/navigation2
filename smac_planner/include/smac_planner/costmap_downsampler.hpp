@@ -47,7 +47,7 @@ public:
    * @param costmap The costmap we want to downsample
    * @param downsampling_factor Multiplier for the costmap resolution
    */
-   void initialize(
+  void initialize(
     const std::string & global_frame,
     const std::string & topic_name,
     nav2_costmap_2d::Costmap2D * const costmap,
@@ -56,14 +56,16 @@ public:
   /**
    * @brief Activate the publisher of the downsampled costmap
    */
-  void activatePublisher() {
+  void activatePublisher()
+  {
     _downsampled_costmap_pub->on_activate();
   }
 
   /**
    * @brief Deactivate the publisher of the downsampled costmap
    */
-  void deactivatePublisher() {
+  void deactivatePublisher()
+  {
     _downsampled_costmap_pub->on_deactivate();
   }
 

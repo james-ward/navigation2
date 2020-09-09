@@ -48,9 +48,9 @@ typedef std::vector<MotionPose> MotionPoses;
 // Must forward declare
 class NodeSE2;
 
-struct MotionTable 
+struct MotionTable
 {
-  MotionTable() {};
+  MotionTable() {}
 
   void initDubin(
     unsigned int & size_x_in,
@@ -66,7 +66,7 @@ struct MotionTable
 
   MotionPoses getProjections(NodeSE2 * & node);
   MotionPose getProjection(NodeSE2 * & node, const unsigned int & motion_index);
-  
+
   MotionPoses projections;
   unsigned int size_x;
   unsigned int num_angle_quantization;
@@ -90,10 +90,10 @@ public:
    */
   struct Coordinates
   {
-    Coordinates() {};
+    Coordinates() {}
     Coordinates(const float & x_in, const float & y_in, const float & theta_in)
     : x(x_in), y(y_in), theta(theta_in)
-    {};
+    {}
 
     float x, y, theta;
   };
@@ -228,9 +228,9 @@ public:
     const unsigned int & width, const unsigned int angle_quantization)
   {
     return Coordinates(
-        (index / angle_quantization) % width,  // x
-        index / (angle_quantization * width),  // y
-        index % angle_quantization);  // theta
+      (index / angle_quantization) % width,    // x
+      index / (angle_quantization * width),    // y
+      index % angle_quantization);    // theta
   }
 
   /**
@@ -252,12 +252,12 @@ public:
   /**
    * @brief Retrieve all valid neighbors of a node.
    * @param node Pointer to the node we are currently exploring in A*
-   * @param validity_checker Functor for state validity checking 
+   * @param validity_checker Functor for state validity checking
    * @param neighbors Vector of neighbors to be filled
    */
   static void getNeighbors(
     NodePtr & node,
-    std::function<bool(const unsigned int&, smac_planner::NodeSE2*&)> & validity_checker,
+    std::function<bool(const unsigned int &, smac_planner::NodeSE2 * &)> & validity_checker,
     NodeVector & neighbors);
 
   NodeSE2 * parent;

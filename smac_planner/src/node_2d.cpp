@@ -45,7 +45,8 @@ void Node2D::reset(const unsigned char & cost, const unsigned int index)
   _is_queued = false;
 }
 
-bool Node2D::isNodeValid(const bool & traverse_unknown) {
+bool Node2D::isNodeValid(const bool & traverse_unknown)
+{
   // NOTE(stevemacenski): Right now, we do not check if the node has wrapped around
   // the regular grid (e.g. your node is on the edge of the costmap and i+1
   // goes to the other side). This check would add compute time and my assertion is
@@ -91,17 +92,18 @@ void Node2D::initNeighborhood(
       break;
     case MotionModel::MOORE:
       _neighbors_grid_offsets = {-1, +1, -x_size, +x_size, -x_size - 1,
-                                 -x_size + 1, +x_size - 1, +x_size + 1};
+        -x_size + 1, +x_size - 1, +x_size + 1};
       break;
     default:
-      throw std::runtime_error("Invalid neighborhood type selected. "
-        "Von-Neumann and Moore are valid for Node2D.");
+      throw std::runtime_error(
+              "Invalid neighborhood type selected. "
+              "Von-Neumann and Moore are valid for Node2D.");
   }
 }
 
 void Node2D::getNeighbors(
   NodePtr & node,
-  std::function<bool(const unsigned int&, smac_planner::Node2D*&)> & validityCheckerFunctor,
+  std::function<bool(const unsigned int &, smac_planner::Node2D * &)> & validityCheckerFunctor,
   NodeVector & neighbors)
 {
   // NOTE(stevemacenski): Irritatingly, the order here matters. If you start in free
@@ -119,10 +121,9 @@ void Node2D::getNeighbors(
   NodePtr neighbor;
   int node_i = node->getIndex();
 
-  for(unsigned int i = 0; i != _neighbors_grid_offsets.size(); ++i) {
+  for (unsigned int i = 0; i != _neighbors_grid_offsets.size(); ++i) {
     index = node_i + _neighbors_grid_offsets[i];
-    if (validityCheckerFunctor(index, neighbor))
-    {
+    if (validityCheckerFunctor(index, neighbor)) {
       neighbors.push_back(neighbor);
     }
   }

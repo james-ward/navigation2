@@ -41,10 +41,10 @@ void MotionTable::initDubin(
 
   // angle must meet 3 requirements:
   // 1) be increment of quantized bin size
-  // 2) chord length must be greater than sqrt(2) to leave current cell 
+  // 2) chord length must be greater than sqrt(2) to leave current cell
   // 3) maximum curvature must be respected, represented by minimum turning angle
   // Thusly:
-  // On circle of radius minimum turning angle, we need select motion primatives 
+  // On circle of radius minimum turning angle, we need select motion primatives
   // with chord length > sqrt(2) and be an increment of our bin size
   //
   // chord >= sqrt(2) >= 2 * R * sin (angle / 2); where angle / N = quantized bin size
@@ -176,7 +176,7 @@ MotionPose MotionTable::getProjection(NodeSE2 * & node, const unsigned int & mot
   while (new_heading < 0.0) {
     new_heading += num_angle_quantization_float;
   }
-  
+
   return MotionPose(delta_x + node->pose.x, delta_y + node->pose.y, new_heading);
 }
 
@@ -205,7 +205,8 @@ void NodeSE2::reset(const unsigned char & cost, const unsigned int index)
   _is_queued = false;
 }
 
-bool NodeSE2::isNodeValid(const bool & traverse_unknown) {
+bool NodeSE2::isNodeValid(const bool & traverse_unknown)
+{
   // NOTE(stevemacenski): Right now, we do not check if the node has wrapped around
   // the regular grid (e.g. your node is on the edge of the costmap and i+1
   // goes to the other side). This check would add compute time and my assertion is
@@ -245,7 +246,7 @@ void NodeSE2::initMotionModel(
   float min_turning_radius)
 {
   // find the motion model selected
-  switch(motion_model) {
+  switch (motion_model) {
     case MotionModel::DUBIN:
       _motion_model.initDubin(size_x, num_angle_quantization, min_turning_radius);
       break;
@@ -256,23 +257,24 @@ void NodeSE2::initMotionModel(
     //   _motion_model.initBalkcomMason(size_x, num_angle_quantization);
     //   break;
     default:
-      throw std::runtime_error("Invalid motion model for SE2 node. Please select between"
-        " Dubin (Ackermann forward only),"
-        " Reeds-Shepp (Ackermann forward and back),"
-        " or Balkcom-Mason (Differential drive and omnidirectional) models.");
+      throw std::runtime_error(
+              "Invalid motion model for SE2 node. Please select between"
+              " Dubin (Ackermann forward only),"
+              " Reeds-Shepp (Ackermann forward and back),"
+              " or Balkcom-Mason (Differential drive and omnidirectional) models.");
   }
 }
 
 void NodeSE2::getNeighbors(
   NodePtr & node,
-  std::function<bool(const unsigned int&, smac_planner::NodeSE2*&)> & validityCheckerFunctor,
+  std::function<bool(const unsigned int &, smac_planner::NodeSE2 * &)> & validityCheckerFunctor,
   NodeVector & neighbors)
 {
   unsigned int index;
   NodePtr neighbor = nullptr;
   const MotionPoses motion_projections = _motion_model.getProjections(node);
 
-  for(unsigned int i = 0; i != motion_projections.size(); i++) {
+  for (unsigned int i = 0; i != motion_projections.size(); i++) {
     index = NodeSE2::getIndex(
       static_cast<unsigned int>(motion_projections[i]._x),
       static_cast<unsigned int>(motion_projections[i]._y),

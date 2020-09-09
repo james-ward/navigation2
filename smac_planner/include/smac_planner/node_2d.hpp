@@ -46,12 +46,12 @@ public:
    */
   struct Coordinates
   {
-    Coordinates() {};
+    Coordinates() {}
     Coordinates(const float & x_in, const float & y_in)
     : x(x_in), y(y_in)
-    {};
-    
-    float x, y; 
+    {}
+
+    float x, y;
   };
   typedef std::vector<Coordinates> CoordinateVector;
 
@@ -199,12 +199,12 @@ public:
   /**
    * @brief Retrieve all valid neighbors of a node.
    * @param node Pointer to the node we are currently exploring in A*
-   * @param graph Reference to graph to discover new nodes 
+   * @param graph Reference to graph to discover new nodes
    * @param neighbors Vector of neighbors to be filled
    */
   static void getNeighbors(
     NodePtr & node,
-    std::function<bool(const unsigned int&, smac_planner::Node2D*&)> & validity_checker,
+    std::function<bool(const unsigned int &, smac_planner::Node2D * &)> & validity_checker,
     NodeVector & neighbors);
 
   Node2D * parent;
