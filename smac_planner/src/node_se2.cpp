@@ -280,7 +280,7 @@ void NodeSE2::getNeighbors(
       static_cast<unsigned int>(motion_projections[i]._y),
       static_cast<unsigned int>(motion_projections[i]._theta),
       _motion_model.size_x, _motion_model.num_angle_quantization);
-    if (validityCheckerFunctor(index, neighbor)) {
+    if (validityCheckerFunctor(index, neighbor) && !neighbor->wasVisited()) {
       neighbor->setPose(
         Coordinates(
           motion_projections[i]._x,
