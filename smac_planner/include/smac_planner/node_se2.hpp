@@ -60,9 +60,9 @@ struct MotionTable
     unsigned int & size_x_in,
     unsigned int & angle_quantization_in,
     float & min_turning_radius);
-  void initBalkcomMason(
-    unsigned int & size_x_in,
-    unsigned int & angle_quantization_in);
+  // void initBalkcomMason(
+  //   unsigned int & size_x_in,
+  //   unsigned int & angle_quantization_in);
 
   MotionPoses getProjections(NodeSE2 * & node);
   MotionPose getProjection(NodeSE2 * & node, const unsigned int & motion_index);

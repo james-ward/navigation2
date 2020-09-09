@@ -274,8 +274,7 @@ bool AStarAlgorithm<NodeT>::createPath(CoordinateVector & path, int & iterations
       }
 
       neighbor = & _graph->operator[](index);
-      if (neighbor->isNodeValid(_traverse_unknown))
-      {
+      if (neighbor->isNodeValid(_traverse_unknown)) {
         return true;
       }
 
@@ -430,7 +429,8 @@ float AStarAlgorithm<NodeT>::getTraversalCost(
 template<typename NodeT>
 float AStarAlgorithm<NodeT>::getHeuristicCost(const NodePtr & node)
 {
-  Coordinates node_coords = NodeT::getCoords(node->getIndex(), getSizeX(), getSizeDim3());
+  const Coordinates node_coords =
+    NodeT::getCoords(node->getIndex(), getSizeX(), getSizeDim3());
   float heuristic = NodeT::getHeuristicCost(
     node_coords, _goal_coordinates) * _neutral_cost;
   

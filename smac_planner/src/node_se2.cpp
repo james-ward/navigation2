@@ -117,35 +117,35 @@ void MotionTable::initReedsShepp(
 // Allows a differential drive robot to move in all the basic ways
 // its base can allow: forward and back, spin in place, rotate while moving
 // This isn't a 'pure' implementation, but in the right theme
-void MotionTable::initBalkcomMason(
-  unsigned int & size_x_in,
-  unsigned int & num_angle_quantization_in)
-{
-  size_x = size_x_in;
-  num_angle_quantization = num_angle_quantization_in;
-  num_angle_quantization_float = static_cast<float>(num_angle_quantization);
+// void MotionTable::initBalkcomMason(
+//   unsigned int & size_x_in,
+//   unsigned int & num_angle_quantization_in)
+// {
+//   size_x = size_x_in;
+//   num_angle_quantization = num_angle_quantization_in;
+//   num_angle_quantization_float = static_cast<float>(num_angle_quantization);
 
-  bin_size =
-    2.0f * static_cast<float>(M_PI) / static_cast<float>(num_angle_quantization);
+//   bin_size =
+//     2.0f * static_cast<float>(M_PI) / static_cast<float>(num_angle_quantization);
 
-  // square root of two arc length used to ensure leaving current cell
-  const float sqrt_2 = sqrt(2.0);
+//   // square root of two arc length used to ensure leaving current cell
+//   const float sqrt_2 = sqrt(2.0);
 
-  // if we move sqrt(2) and an angle at the same time, there's a Y deflection
-  const float delta_y = sqrt_2 * sin(bin_size);
-  const float delta_x = sqrt_2 * cos(bin_size);
+//   // if we move sqrt(2) and an angle at the same time, there's a Y deflection
+//   const float delta_y = sqrt_2 * sin(bin_size);
+//   const float delta_x = sqrt_2 * cos(bin_size);
 
-  projections.clear();
-  projections.reserve(8);
-  projections.emplace_back(sqrt_2, 0.0, 0.0);  // Forward
-  projections.emplace_back(-sqrt_2, 0.0, 0.0);  // Backward
-  projections.emplace_back(0.0, 0.0, 1);  // Spin left
-  projections.emplace_back(0.0, 0.0, -1);  // Spin right
-  projections.emplace_back(delta_x, delta_y, 1);  // Spin left + Forward
-  projections.emplace_back(-delta_x, delta_y, -1);  // Spin left + Backward
-  projections.emplace_back(delta_x, -delta_y, -1);  // Spin right + Forward
-  projections.emplace_back(-sqrt_2, -delta_y, 1);  // Spin right + Backward
-}
+//   projections.clear();
+//   projections.reserve(8);
+//   projections.emplace_back(sqrt_2, 0.0, 0.0);  // Forward
+//   projections.emplace_back(-sqrt_2, 0.0, 0.0);  // Backward
+//   projections.emplace_back(0.0, 0.0, 1);  // Spin left
+//   projections.emplace_back(0.0, 0.0, -1);  // Spin right
+//   projections.emplace_back(delta_x, delta_y, 1);  // Spin left + Forward
+//   projections.emplace_back(-delta_x, delta_y, -1);  // Spin left + Backward
+//   projections.emplace_back(delta_x, -delta_y, -1);  // Spin right + Forward
+//   projections.emplace_back(-sqrt_2, -delta_y, 1);  // Spin right + Backward
+// }
 
 MotionPoses MotionTable::getProjections(NodeSE2 * & node)
 {
@@ -252,9 +252,9 @@ void NodeSE2::initMotionModel(
     case MotionModel::REEDS_SHEPP:
       _motion_model.initReedsShepp(size_x, num_angle_quantization, min_turning_radius);
       break;
-    case MotionModel::BALKCOM_MASON:
-      _motion_model.initBalkcomMason(size_x, num_angle_quantization);
-      break;
+    // case MotionModel::BALKCOM_MASON:
+    //   _motion_model.initBalkcomMason(size_x, num_angle_quantization);
+    //   break;
     default:
       throw std::runtime_error("Invalid motion model for SE2 node. Please select between"
         " Dubin (Ackermann forward only),"

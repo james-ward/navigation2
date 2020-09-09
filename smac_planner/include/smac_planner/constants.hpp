@@ -24,7 +24,7 @@ namespace smac_planner
     MOORE = 2,
     DUBIN = 3,
     REEDS_SHEPP = 4,
-    BALKCOM_MASON = 5,
+    // BALKCOM_MASON = 5,
   };
 
   inline std::string toString(const MotionModel & n)
@@ -38,8 +38,8 @@ namespace smac_planner
         return "Dubin";
       case MotionModel::REEDS_SHEPP:
         return "Reeds-Shepp";
-      case MotionModel::BALKCOM_MASON:
-        return "Balkcom-Mason";
+      // case MotionModel::BALKCOM_MASON:
+      //   return "Balkcom-Mason";
       default:
         return "Unknown";
     }
@@ -55,8 +55,8 @@ namespace smac_planner
       return MotionModel::DUBIN;
     } else if (n == "REEDS_SHEPP") {
       return MotionModel::REEDS_SHEPP;
-    } else if (n == "BALKCOM_MASON") {
-      return MotionModel::BALKCOM_MASON;
+    // } else if (n == "BALKCOM_MASON") {
+    //   return MotionModel::BALKCOM_MASON;
     } else {
       return MotionModel::UNKNOWN; 
     }

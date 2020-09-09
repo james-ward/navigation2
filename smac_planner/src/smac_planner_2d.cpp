@@ -99,7 +99,7 @@ void SmacPlanner2D::configure(
   if (motion_model == MotionModel::UNKNOWN) {
     RCLCPP_WARN(_node->get_logger(),
       "Unable to get MotionModel search type. Given '%s', "
-      "valid options are MOORE, VON_NEUMANN, DUBIN, REEDS_SHEPP, BALKCOM_MASON.",
+      "valid options are MOORE, VON_NEUMANN, DUBIN, REEDS_SHEPP.",
       motion_model_for_search.c_str());
   }
 
