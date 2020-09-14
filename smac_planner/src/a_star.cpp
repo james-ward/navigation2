@@ -348,7 +348,7 @@ bool AStarAlgorithm<NodeT>::createPath(
 template<typename NodeT>
 bool AStarAlgorithm<NodeT>::isGoal(NodePtr & node)
 {
-  return node == getGoal();
+  return *node == *getGoal();
 }
 
 template<>
