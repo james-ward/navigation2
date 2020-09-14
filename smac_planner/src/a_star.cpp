@@ -417,6 +417,26 @@ void AStarAlgorithm<NodeT>::addNode(const float cost, NodePtr & node)
 // Might need a new NodeT::getTravelCost() so each can have their own to get cost
 // TODO g cost include change direction + forward / back penalties.
 // https://github.com/karlkurzer/path_planner/blob/master/src/node3d.cpp#L73-L102
+template<>
+float AStarAlgorithm<NodeSE2>::getTraversalCost(
+  NodePtr & current_node,
+  NodePtr & new_node)
+{
+  float & node_cost = new_node->getCost();
+
+  const Coordinates & node_coords = current_node->pose;
+  const Coordinates & target_coords = new_node->pose;
+
+  // Multiply by distance since SE2 nodes tend to expand by more than
+  // 1 cell length
+  const float d = hypotf(
+      node_coords.x - target_coords.x,
+      node_coords.y - target_coords.y
+      );
+  // Higher the scale, the less cost for lengthwise expansion
+  return d * (_neutral_cost + _travel_cost_scale * node_cost);
+}
+
 template<typename NodeT>
 float AStarAlgorithm<NodeT>::getTraversalCost(
   NodePtr & current_node,
@@ -424,9 +444,8 @@ float AStarAlgorithm<NodeT>::getTraversalCost(
 {
   float & node_cost = new_node->getCost();
 
-  // rescale cost quadratically, makes search more convex
   // Higher the scale, the less cost for lengthwise expansion
-  return _neutral_cost + _travel_cost_scale * node_cost * node_cost;
+  return _neutral_cost + _travel_cost_scale * node_cost;
 }
 
 template<typename NodeT>
@@ -436,11 +455,6 @@ float AStarAlgorithm<NodeT>::getHeuristicCost(const NodePtr & node)
     NodeT::getCoords(node->getIndex(), getSizeX(), getSizeDim3());
   float heuristic = NodeT::getHeuristicCost(
     node_coords, _goal_coordinates) * _neutral_cost;
-
-  // If we're far from goal, we want to ensure we can speed it along
-  if (heuristic > getToleranceHeuristic()) {
-    heuristic *= _neutral_cost;
-  }
 
   if (heuristic < _best_heuristic_node.first) {
     _best_heuristic_node = {heuristic, node->getIndex()};
