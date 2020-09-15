@@ -184,6 +184,27 @@ public:
    */
   bool operator==(const NodeSE2 & rhs)
   {
+    // TODO(james-ward) Relaxing the tolerances on the goal match
+    // makes a huge difference to the number of "loop-the-loops"
+    // in the path. This may be fixed by the addition of analytic
+    // path expansions in the search, however.
+    /*
+    const Coordinates & lhs_coords = this->pose;
+    const Coordinates & rhs_coords = rhs.pose;
+
+    auto angle = lhs_coords.theta - rhs_coords.theta;
+    while (angle >= this->_motion_model.num_angle_quantization_float/2) {
+      angle -= this->_motion_model.num_angle_quantization_float;
+    }
+    while (angle < -this->_motion_model.num_angle_quantization_float/2) {
+      angle += this->_motion_model.num_angle_quantization_float;
+    }
+    const int tol = 2;  // TODO(james-ward) Set this properly
+
+    return abs(lhs_coords.x - rhs_coords.x) <= tol
+      && abs(lhs_coords.y - rhs_coords.y) <= tol
+      && abs(angle) <= tol;
+    */
     return this->_index == rhs._index;
   }
 
