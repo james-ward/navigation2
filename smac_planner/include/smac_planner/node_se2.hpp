@@ -193,11 +193,11 @@ public:
     const Coordinates & rhs_coords = rhs.pose;
 
     auto angle = lhs_coords.theta - rhs_coords.theta;
-    while (angle >= this->_motion_model.num_angle_quantization_float/2) {
-      angle -= this->_motion_model.num_angle_quantization_float;
+    while (angle >= this->motion_table.num_angle_quantization_float/2) {
+      angle -= this->motion_table.num_angle_quantization_float;
     }
-    while (angle < -this->_motion_model.num_angle_quantization_float/2) {
-      angle += this->_motion_model.num_angle_quantization_float;
+    while (angle < -this->motion_table.num_angle_quantization_float/2) {
+      angle += this->motion_table.num_angle_quantization_float;
     }
     const int tol = 2;  // TODO(james-ward) Set this properly
 
@@ -341,6 +341,13 @@ public:
     return angle + x * angle_quantization + y * width * angle_quantization;
   }
 
+  static inline unsigned int getIndex(
+    const unsigned int & x, const unsigned int & y, const unsigned int & angle)
+  {
+    return getIndex(x, y, angle, motion_table.size_x,
+        motion_table.num_angle_quantization);
+  }
+
   /**
    * @brief Get coordinates at index
    * @param index Index of point
@@ -412,7 +419,7 @@ public:
   NodeSE2 * parent;
   Coordinates pose;
   static double neutral_cost;
-  static MotionTable _motion_model;
+  static MotionTable motion_table;
 
 private:
   float _cell_cost;

@@ -32,9 +32,9 @@ namespace smac_planner
 {
 
 // defining static member for all instance to share
-MotionTable NodeSE2::_motion_model;
 std::vector<unsigned int> NodeSE2::_wavefront_heuristic;
 double NodeSE2::neutral_cost = sqrt(2);
+MotionTable NodeSE2::motion_table;
 
 // Each of these tables are the projected motion models through
 // time and space applied to the search on the current node in
@@ -213,7 +213,7 @@ void NodeSE2::reset()
 bool NodeSE2::isNodeValid(const bool & traverse_unknown, GridCollisionChecker collision_checker)
 {
   if (collision_checker.inCollision(
-      this->pose.x, this->pose.y, this->pose.theta * _motion_model.bin_size, traverse_unknown))
+      this->pose.x, this->pose.y, this->pose.theta * motion_table.bin_size, traverse_unknown))
   {
     return false;
   }
@@ -237,7 +237,7 @@ float NodeSE2::getTraversalCost(const NodePtr & child)
   }
 
   float travel_cost = 0.0;
-  float travel_cost_raw = NodeSE2::neutral_cost + _motion_model.cost_penalty * normalized_cost;
+  float travel_cost_raw = NodeSE2::neutral_cost + motion_table.cost_penalty * normalized_cost;
 
   if (child->getMotionPrimitiveIndex() == 0 || child->getMotionPrimitiveIndex() == 3) {
     // straight motion, no additional costs to be applied
@@ -245,17 +245,17 @@ float NodeSE2::getTraversalCost(const NodePtr & child)
   } else {
     if (getMotionPrimitiveIndex() == child->getMotionPrimitiveIndex()) {
       // Turning motion but keeps in same direction: encourages to commit to turning if starting it
-      travel_cost = travel_cost_raw * _motion_model.non_straight_penalty;
+      travel_cost = travel_cost_raw * motion_table.non_straight_penalty;
     } else {
       // Turning motion and changing direction: penalizes wiggling
-      travel_cost = travel_cost_raw * _motion_model.change_penalty;
-      travel_cost += travel_cost_raw * _motion_model.non_straight_penalty;
+      travel_cost = travel_cost_raw * motion_table.change_penalty;
+      travel_cost += travel_cost_raw * motion_table.non_straight_penalty;
     }
   }
 
   if (getMotionPrimitiveIndex() > 2) {
     // reverse direction
-    travel_cost *= _motion_model.reverse_penalty;
+    travel_cost *= motion_table.reverse_penalty;
   }
 
   return travel_cost;
@@ -266,18 +266,19 @@ float NodeSE2::getHeuristicCost(
   const Coordinates & goal_coords)
 {
   // Dubin or Reeds-Shepp shortest distances
-  ompl::base::ScopedState<> from(_motion_model.state_space), to(_motion_model.state_space);
+  // Create OMPL states for checking
+  ompl::base::ScopedState<> from(motion_table.state_space), to(motion_table.state_space);
   from[0] = node_coords.x;
   from[1] = node_coords.y;
-  from[2] = node_coords.theta * _motion_model.bin_size;
+  from[2] = node_coords.theta * motion_table.bin_size;
   to[0] = goal_coords.x;
   to[1] = goal_coords.y;
-  to[2] = goal_coords.theta * _motion_model.bin_size;
+  to[2] = goal_coords.theta * motion_table.bin_size;
 
-  const float motion_heuristic = _motion_model.state_space->distance(from(), to());
+  const float motion_heuristic = motion_table.state_space->distance(from(), to());
 
   const unsigned int & wavefront_idx = static_cast<unsigned int>(node_coords.y) *
-    _motion_model.size_x + static_cast<unsigned int>(node_coords.x);
+    motion_table.size_x + static_cast<unsigned int>(node_coords.x);
   const unsigned int & wavefront_value = _wavefront_heuristic[wavefront_idx];
 
   // if lethal or didn't visit, use the motion heuristic instead.
@@ -301,10 +302,10 @@ void NodeSE2::initMotionModel(
   // find the motion model selected
   switch (motion_model) {
     case MotionModel::DUBIN:
-      _motion_model.initDubin(size_x, size_y, num_angle_quantization, search_info);
+      motion_table.initDubin(size_x, size_y, num_angle_quantization, search_info);
       break;
     case MotionModel::REEDS_SHEPP:
-      _motion_model.initReedsShepp(size_x, size_y, num_angle_quantization, search_info);
+      motion_table.initReedsShepp(size_x, size_y, num_angle_quantization, search_info);
       break;
     default:
       throw std::runtime_error(
@@ -334,7 +335,7 @@ void NodeSE2::computeWavefrontHeuristic(
     }
   }
 
-  const unsigned int & size_x = _motion_model.size_x;
+  const unsigned int & size_x = motion_table.size_x;
   const int size_x_int = static_cast<int>(size_x);
   const unsigned int size_y = costmap->getSizeInCellsY();
   const unsigned int goal_index = goal_y * size_x + goal_x;
@@ -396,15 +397,15 @@ void NodeSE2::getNeighbors(
 {
   unsigned int index = 0;
   NodePtr neighbor = nullptr;
-  const MotionPoses motion_projections = _motion_model.getProjections(node);
   Coordinates initial_node_coords;
+  const MotionPoses motion_projections = motion_table.getProjections(node);
 
   for (unsigned int i = 0; i != motion_projections.size(); i++) {
     index = NodeSE2::getIndex(
       static_cast<unsigned int>(motion_projections[i]._x),
       static_cast<unsigned int>(motion_projections[i]._y),
       static_cast<unsigned int>(motion_projections[i]._theta),
-      _motion_model.size_x, _motion_model.num_angle_quantization);
+      motion_table.size_x, motion_table.num_angle_quantization);
 
     if (NeighborGetter(index, neighbor) && !neighbor->wasVisited()) {
       // Cache the initial pose in case it was visited but valid

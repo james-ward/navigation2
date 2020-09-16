@@ -50,7 +50,8 @@ inline double squaredDistance(
 template<typename NodeT>
 class AStarAlgorithm
 {
-public:
+
+  public:
   typedef NodeT * NodePtr;
   typedef std::unordered_map<unsigned int, NodeT> Graph;
   typedef std::vector<NodePtr> NodeVector;
@@ -58,6 +59,7 @@ public:
   typedef typename NodeT::Coordinates Coordinates;
   typedef typename NodeT::CoordinateVector CoordinateVector;
   typedef typename NodeVector::iterator NeighborIterator;
+  typedef std::function<bool(const unsigned int &, NodeT * &)> ValidityChecker;
 
   /**
    * @struct smac_planner::NodeComparator
@@ -148,6 +150,7 @@ public:
    * @param use_radius Whether this footprint is a circle with radius
    */
   void setFootprint(nav2_costmap_2d::Footprint footprint, bool use_radius);
+  NodePtr getAnalyticPath(const NodePtr & node, const ValidityChecker & checker);
 
   /**
    * @brief Set the starting pose for planning, as a node index

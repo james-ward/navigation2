@@ -24,6 +24,10 @@
 #include <thread>
 #include <utility>
 
+#include <ompl/base/ScopedState.h>
+#include <ompl/base/spaces/DubinsStateSpace.h>
+#include <ompl/base/spaces/ReedsSheppStateSpace.h>
+
 #include "smac_planner/a_star.hpp"
 using namespace std::chrono;  // NOLINT
 
@@ -240,10 +244,11 @@ bool AStarAlgorithm<NodeT>::createPath(
   NodeVector neighbors;
   int approach_iterations = 0;
   NeighborIterator neighbor_iterator;
+  int analytic_iterations = 0;
 
   // Given an index, return a node ptr reference if its collision-free and valid
   const unsigned int max_index = getSizeX() * getSizeY() * getSizeDim3();
-  std::function<bool(const unsigned int &, NodeT * &)> neighborGetter =
+  ValidityChecker neighborGetter =
     [&, this](const unsigned int & index, NodePtr & neighbor_rtn) -> bool
     {
       if (index < 0 || index >= max_index) {
@@ -269,6 +274,20 @@ bool AStarAlgorithm<NodeT>::createPath(
     // 2) Mark Nbest as visited
     current_node->visited();
 
+    // 2.a) Use an analytic expansion (if available) to generate a path
+    // to the goal.
+    // Then check if it is collision free.
+    // TODO(james-ward): Don't always run this check - base it on the
+    // number of iterations and how close to the goal we are
+    analytic_iterations++;
+    if (analytic_iterations > _best_heuristic_node.first) {
+      NodePtr result = getAnalyticPath(current_node, neighborGetter);
+      if (result != nullptr) {
+        current_node = result;
+      }
+      analytic_iterations = 0;
+    }
+
     // 3) Check if we're at the goal, backtrace if required
     if (isGoal(current_node)) {
       return backtracePath(current_node, path);
@@ -276,7 +295,7 @@ bool AStarAlgorithm<NodeT>::createPath(
       // Optimization: Let us find when in tolerance and refine within reason
       approach_iterations++;
       if (approach_iterations > getOnApproachMaxIterations() ||
-        iterations + 1 == getMaxIterations())
+          iterations + 1 == getMaxIterations())
       {
         NodePtr node = &_graph.at(_best_heuristic_node.second);
         return backtracePath(node, path);
@@ -318,6 +337,84 @@ bool AStarAlgorithm<NodeT>::isGoal(NodePtr & node)
 }
 
 template<>
+AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(const NodePtr & node, const ValidityChecker & checker)
+{
+  if (_motion_model == MotionModel::DUBIN || _motion_model == MotionModel::REEDS_SHEPP)
+  {
+    std::vector<std::pair<NodePtr, Coordinates>> possible_nodes;
+    const NodePtr & goal = getGoal();
+    ompl::base::ScopedState<> from(node->motion_table.state_space), to(node->motion_table.state_space), s(node->motion_table.state_space);
+    const NodeSE2::Coordinates & node_coords = node->pose;
+    const NodeSE2::Coordinates & goal_coords = goal->pose;
+    from[0] = node_coords.x;
+    from[1] = node_coords.y;
+    from[2] = node_coords.theta * node->motion_table.bin_size;
+    to[0] = goal_coords.x;
+    to[1] = goal_coords.y;
+    to[2] = goal_coords.theta * node->motion_table.bin_size;
+
+    float d = node->motion_table.state_space->distance(from(), to());
+    NodePtr prev(node);
+    // A move of sqrt(2) is guaranteed to be in a new cell
+    constexpr float sqrt_2 = std::pow(2., 0.5);
+    unsigned int num_pts = std::floor(d / sqrt_2) + 1;
+    std::vector<double> reals;
+    // Don't generate the first point because we are already there!
+    // And the last point is the goal, so ignore it too!
+    for (unsigned int i = 1; i < num_pts; i++) {
+      node->motion_table.state_space->interpolate(from(), to(), (double)i/num_pts, s());
+      reals = s.reals();
+      float angle = reals[2] / node->motion_table.bin_size;
+      while (angle >= node->motion_table.num_angle_quantization_float) {
+        angle -= node->motion_table.num_angle_quantization_float;
+      }
+      while (angle < 0.0) {
+        angle += node->motion_table.num_angle_quantization_float;
+      }
+      // Turn the pose into a node, and check if it is valid
+      unsigned int index = NodeSE2::getIndex(
+          static_cast<unsigned int>(reals[0]),
+          static_cast<unsigned int>(reals[1]),
+          static_cast<unsigned int>(angle));
+      // Get the node from the graph
+      NodePtr next(nullptr);
+      if (checker(index, next) && next->isNodeValid(_traverse_unknown, _collision_checker) && next != prev) {
+        // Set coordinates
+        const Coordinates c(reals[0], reals[1], angle);
+        possible_nodes.emplace_back(next, c);
+        prev = next;
+      } else {
+        // Abort
+        return NodePtr(nullptr);
+      }
+    }
+    if (num_pts > 2) {
+      // Legitimate path - set the parent relationships and poses
+      NodePtr prev = node;
+      for (const auto & node_pose : possible_nodes) {
+        const auto & n = node_pose.first;
+        if (n != prev) {
+          n->parent = prev;
+          n->setPose(node_pose.second);
+        }
+        prev = n;
+      }
+      if (goal != prev) {
+        goal->parent = prev;
+      }
+      return goal;
+    }
+  }
+  return NodePtr(nullptr);
+}
+
+  template<typename NodeT>
+typename AStarAlgorithm<NodeT>::NodePtr AStarAlgorithm<NodeT>::getAnalyticPath(const NodePtr & node, const ValidityChecker & checker)
+{
+  return NodePtr(nullptr);
+}
+
+  template<>
 bool AStarAlgorithm<Node2D>::backtracePath(NodePtr & node, CoordinateVector & path)
 {
   if (!node->parent) {
@@ -328,15 +425,15 @@ bool AStarAlgorithm<Node2D>::backtracePath(NodePtr & node, CoordinateVector & pa
 
   while (current_node->parent) {
     path.push_back(
-      Node2D::getCoords(
-        current_node->getIndex(), getSizeX(), getSizeDim3()));
+        Node2D::getCoords(
+          current_node->getIndex(), getSizeX(), getSizeDim3()));
     current_node = current_node->parent;
   }
 
   return path.size() > 1;
 }
 
-template<>
+  template<>
 bool AStarAlgorithm<NodeSE2>::backtracePath(NodePtr & node, CoordinateVector & path)
 {
   if (!node->parent) {
