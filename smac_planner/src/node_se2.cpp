@@ -77,11 +77,12 @@ void MotionTable::initDubin(
   float increments;
   if (angle < bin_size) {
     increments = 1.0f;
-    angle = bin_size;
+  } else {
+    // Search dimensions are clean multiples of quantization - this prevents
+    // paths with loops in them
+    increments = floor(angle / bin_size);
   }
-
-  // Search dimensions not promised to be clean multiples of quantization
-  increments = angle / bin_size;
+  angle = increments * bin_size;
 
   // find deflections
   // If we make a right triangle out of the chord in circle of radius
@@ -125,10 +126,11 @@ void MotionTable::initReedsShepp(
   float increments;
   if (angle < bin_size) {
     increments = 1.0f;
-    angle = bin_size;
+  } else {
+    increments = floor(angle / bin_size);
   }
+  angle = increments * bin_size;
 
-  increments = angle / bin_size;
   float delta_x = search_info.minimum_turning_radius * sin(angle);
   float delta_y = search_info.minimum_turning_radius -
     (search_info.minimum_turning_radius * cos(angle));
