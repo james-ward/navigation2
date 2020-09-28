@@ -380,11 +380,18 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
         static_cast<unsigned int>(angle));
       // Get the node from the graph
       NodePtr next(nullptr);
-      if (checker(index, next) && next->isNodeValid(_traverse_unknown, _collision_checker) && next != prev) {
-        // Set coordinates
-        const Coordinates c(reals[0], reals[1], angle);
-        possible_nodes.emplace_back(next, c);
-        prev = next;
+      if (checker(index, next)) {
+        Coordinates initial_node_coords = next->pose;
+        next->setPose(Coordinates(reals[0], reals[1], angle));
+        if (next->isNodeValid(_traverse_unknown, _collision_checker) && next != prev) {
+          // Set coordinates
+          const Coordinates c(reals[0], reals[1], angle);
+          possible_nodes.emplace_back(next, c);
+          prev = next;
+        } else {
+          next->setPose(initial_node_coords);
+          return NodePtr(nullptr);
+        }
       } else {
         // Abort
         return NodePtr(nullptr);
