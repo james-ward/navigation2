@@ -248,7 +248,7 @@ bool AStarAlgorithm<NodeT>::createPath(
 
   // Given an index, return a node ptr reference if its collision-free and valid
   const unsigned int max_index = getSizeX() * getSizeY() * getSizeDim3();
-  ValidityChecker neighborGetter =
+  NodeGetter neighborGetter =
     [&, this](const unsigned int & index, NodePtr & neighbor_rtn) -> bool
     {
       if (index < 0 || index >= max_index) {
@@ -339,7 +339,7 @@ bool AStarAlgorithm<NodeT>::isGoal(NodePtr & node)
 template<>
 AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
   const NodePtr & node,
-  const ValidityChecker & checker)
+  const NodeGetter & node_getter)
 {
   if (_motion_model == MotionModel::DUBIN || _motion_model == MotionModel::REEDS_SHEPP) {
     std::vector<std::pair<NodePtr, Coordinates>> possible_nodes;
@@ -384,7 +384,7 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
         static_cast<unsigned int>(reals[1]),
         static_cast<unsigned int>(angle));
       // Get the node from the graph
-      if (checker(index, next)) {
+      if (node_getter(index, next)) {
         Coordinates initial_node_coords = next->pose;
         proposed_coordinates = {static_cast<float>(reals[0]), static_cast<float>(reals[1]), angle};
         next->setPose(proposed_coordinates);
@@ -424,7 +424,7 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
 template<typename NodeT>
 typename AStarAlgorithm<NodeT>::NodePtr AStarAlgorithm<NodeT>::getAnalyticPath(
   const NodePtr & node,
-  const ValidityChecker & checker)
+  const NodeGetter & node_getter)
 {
   return NodePtr(nullptr);
 }
