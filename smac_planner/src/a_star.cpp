@@ -275,29 +275,32 @@ bool AStarAlgorithm<NodeT>::createPath(
     // 2) Mark Nbest as visited
     current_node->visited();
 
-    // 2.a) Use an analytic expansion (if available) to generate a path
-    // to the goal.
-    // Then check if it is collision free.
-    // TODO(james-ward): Don't always run this check - base it on the
-    // number of iterations and how close to the goal we are
-    // Always run the expansion on the first run in case there is a
-    // trivial path to be found
-    if (analytic_iterations <= 0) {
-      NodePtr result = getAnalyticPath(current_node, neighborGetter);
-      if (result != nullptr) {
-        current_node = result;
-      }
-      analytic_iterations = closest_distance;
-    }
-    analytic_iterations--;
-    const Coordinates node_coords =
-      NodeT::getCoords(current_node->getIndex(), getSizeX(), getSizeDim3());
-    closest_distance =
-      std::min(
-      closest_distance,
-      static_cast<int>(NodeT::getHeuristicCost(node_coords, _goal_coordinates)));
-    analytic_iterations = std::min(analytic_iterations, closest_distance);
+    if (_motion_model == MotionModel::DUBIN || _motion_model == MotionModel::REEDS_SHEPP) {
+      // This must be a NodeSE2 node if we are using these motion models
 
+      // 2.a) Use an analytic expansion (if available) to generate a path
+      // to the goal.
+      // Then check if it is collision free.
+      // TODO(james-ward): Don't always run this check - base it on the
+      // number of iterations and how close to the goal we are
+      // Always run the expansion on the first run in case there is a
+      // trivial path to be found
+      if (analytic_iterations <= 0) {
+        NodePtr result = getAnalyticPath(current_node, neighborGetter);
+        if (result != nullptr) {
+          current_node = result;
+        }
+        analytic_iterations = closest_distance;
+      }
+      analytic_iterations--;
+      const Coordinates node_coords =
+        NodeT::getCoords(current_node->getIndex(), getSizeX(), getSizeDim3());
+      closest_distance =
+        std::min(
+        closest_distance,
+        static_cast<int>(NodeT::getHeuristicCost(node_coords, _goal_coordinates)));
+      analytic_iterations = std::min(analytic_iterations, closest_distance);
+    }
     // 3) Check if we're at the goal, backtrace if required
     if (isGoal(current_node)) {
       return backtracePath(current_node, path);
@@ -351,82 +354,80 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
   const NodePtr & node,
   const NodeGetter & node_getter)
 {
-  if (_motion_model == MotionModel::DUBIN || _motion_model == MotionModel::REEDS_SHEPP) {
-    std::vector<std::pair<NodePtr, Coordinates>> possible_nodes;
-    const NodePtr & goal = getGoal();
-    ompl::base::ScopedState<> from(node->motion_table.state_space), to(
-      node->motion_table.state_space), s(node->motion_table.state_space);
-    const NodeSE2::Coordinates & node_coords = node->pose;
-    const NodeSE2::Coordinates & goal_coords = goal->pose;
-    from[0] = node_coords.x;
-    from[1] = node_coords.y;
-    from[2] = node_coords.theta * node->motion_table.bin_size;
-    to[0] = goal_coords.x;
-    to[1] = goal_coords.y;
-    to[2] = goal_coords.theta * node->motion_table.bin_size;
+  std::vector<std::pair<NodePtr, Coordinates>> possible_nodes;
+  const NodePtr & goal = getGoal();
+  ompl::base::ScopedState<> from(node->motion_table.state_space), to(
+    node->motion_table.state_space), s(node->motion_table.state_space);
+  const NodeSE2::Coordinates & node_coords = node->pose;
+  const NodeSE2::Coordinates & goal_coords = goal->pose;
+  from[0] = node_coords.x;
+  from[1] = node_coords.y;
+  from[2] = node_coords.theta * node->motion_table.bin_size;
+  to[0] = goal_coords.x;
+  to[1] = goal_coords.y;
+  to[2] = goal_coords.theta * node->motion_table.bin_size;
 
-    float d = node->motion_table.state_space->distance(from(), to());
-    NodePtr prev(node);
-    // A move of sqrt(2) is guaranteed to be in a new cell
-    constexpr float sqrt_2 = std::sqrt(2.);
-    unsigned int num_pts = std::floor(d / sqrt_2) + 1;
-    std::vector<double> reals;
-    // Pre-allocate
-    unsigned int index = 0;
-    NodePtr next(nullptr);
-    float angle = 0.0;
-    Coordinates proposed_coordinates;
-    // Don't generate the first point because we are already there!
-    // And the last point is the goal, so ignore it too!
-    for (unsigned int i = 1; i < num_pts; i++) {
-      node->motion_table.state_space->interpolate(from(), to(), (double)i / num_pts, s());
-      reals = s.reals();
-      angle = reals[2] / node->motion_table.bin_size;
-      while (angle >= node->motion_table.num_angle_quantization_float) {
-        angle -= node->motion_table.num_angle_quantization_float;
-      }
-      while (angle < 0.0) {
-        angle += node->motion_table.num_angle_quantization_float;
-      }
-      // Turn the pose into a node, and check if it is valid
-      index = NodeSE2::getIndex(
-        static_cast<unsigned int>(reals[0]),
-        static_cast<unsigned int>(reals[1]),
-        static_cast<unsigned int>(angle));
-      // Get the node from the graph
-      if (node_getter(index, next)) {
-        Coordinates initial_node_coords = next->pose;
-        proposed_coordinates = {static_cast<float>(reals[0]), static_cast<float>(reals[1]), angle};
-        next->setPose(proposed_coordinates);
-        if (next->isNodeValid(_traverse_unknown, _collision_checker) && next != prev) {
-          // Set coordinates
-          possible_nodes.emplace_back(next, proposed_coordinates);
-          prev = next;
-        } else {
-          next->setPose(initial_node_coords);
-          return NodePtr(nullptr);
-        }
+  float d = node->motion_table.state_space->distance(from(), to());
+  NodePtr prev(node);
+  // A move of sqrt(2) is guaranteed to be in a new cell
+  constexpr float sqrt_2 = std::sqrt(2.);
+  unsigned int num_pts = std::floor(d / sqrt_2) + 1;
+  std::vector<double> reals;
+  // Pre-allocate
+  unsigned int index = 0;
+  NodePtr next(nullptr);
+  float angle = 0.0;
+  Coordinates proposed_coordinates;
+  // Don't generate the first point because we are already there!
+  // And the last point is the goal, so ignore it too!
+  for (unsigned int i = 1; i < num_pts; i++) {
+    node->motion_table.state_space->interpolate(from(), to(), (double)i / num_pts, s());
+    reals = s.reals();
+    angle = reals[2] / node->motion_table.bin_size;
+    while (angle >= node->motion_table.num_angle_quantization_float) {
+      angle -= node->motion_table.num_angle_quantization_float;
+    }
+    while (angle < 0.0) {
+      angle += node->motion_table.num_angle_quantization_float;
+    }
+    // Turn the pose into a node, and check if it is valid
+    index = NodeSE2::getIndex(
+      static_cast<unsigned int>(reals[0]),
+      static_cast<unsigned int>(reals[1]),
+      static_cast<unsigned int>(angle));
+    // Get the node from the graph
+    if (node_getter(index, next)) {
+      Coordinates initial_node_coords = next->pose;
+      proposed_coordinates = {static_cast<float>(reals[0]), static_cast<float>(reals[1]), angle};
+      next->setPose(proposed_coordinates);
+      if (next->isNodeValid(_traverse_unknown, _collision_checker) && next != prev) {
+        // Set coordinates
+        possible_nodes.emplace_back(next, proposed_coordinates);
+        prev = next;
       } else {
-        // Abort
+        next->setPose(initial_node_coords);
         return NodePtr(nullptr);
       }
+    } else {
+      // Abort
+      return NodePtr(nullptr);
     }
-    if (num_pts > 2) {
-      // Legitimate path - set the parent relationships and poses
-      NodePtr prev = node;
-      for (const auto & node_pose : possible_nodes) {
-        const auto & n = node_pose.first;
-        if (n != prev) {
-          n->parent = prev;
-          n->setPose(node_pose.second);
-        }
-        prev = n;
+  }
+  if (num_pts > 2) {
+    // Legitimate path - set the parent relationships and poses
+    NodePtr prev = node;
+    for (const auto & node_pose : possible_nodes) {
+      const auto & n = node_pose.first;
+      if (n != prev) {
+        n->parent = prev;
+        n->setPose(node_pose.second);
       }
-      if (goal != prev) {
-        goal->parent = prev;
-      }
-      return goal;
+      prev = n;
     }
+    if (goal != prev) {
+      goal->parent = prev;
+    }
+    return goal;
   }
   return NodePtr(nullptr);
 }
