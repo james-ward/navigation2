@@ -51,7 +51,7 @@ template<typename NodeT>
 class AStarAlgorithm
 {
 
-  public:
+public:
   typedef NodeT * NodePtr;
   typedef std::unordered_map<unsigned int, NodeT> Graph;
   typedef std::vector<NodePtr> NodeVector;
@@ -59,7 +59,7 @@ class AStarAlgorithm
   typedef typename NodeT::Coordinates Coordinates;
   typedef typename NodeT::CoordinateVector CoordinateVector;
   typedef typename NodeVector::iterator NeighborIterator;
-  typedef std::function<bool(const unsigned int &, NodeT * &)> ValidityChecker;
+  typedef std::function<bool (const unsigned int &, NodeT * &)> ValidityChecker;
 
   /**
    * @struct smac_planner::NodeComparator

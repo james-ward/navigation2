@@ -344,8 +344,9 @@ public:
   static inline unsigned int getIndex(
     const unsigned int & x, const unsigned int & y, const unsigned int & angle)
   {
-    return getIndex(x, y, angle, motion_table.size_x,
-        motion_table.num_angle_quantization);
+    return getIndex(
+      x, y, angle, motion_table.size_x,
+      motion_table.num_angle_quantization);
   }
 
   /**

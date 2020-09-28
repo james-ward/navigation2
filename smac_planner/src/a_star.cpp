@@ -295,7 +295,7 @@ bool AStarAlgorithm<NodeT>::createPath(
       // Optimization: Let us find when in tolerance and refine within reason
       approach_iterations++;
       if (approach_iterations > getOnApproachMaxIterations() ||
-          iterations + 1 == getMaxIterations())
+        iterations + 1 == getMaxIterations())
       {
         NodePtr node = &_graph.at(_best_heuristic_node.second);
         return backtracePath(node, path);
@@ -337,13 +337,15 @@ bool AStarAlgorithm<NodeT>::isGoal(NodePtr & node)
 }
 
 template<>
-AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(const NodePtr & node, const ValidityChecker & checker)
+AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
+  const NodePtr & node,
+  const ValidityChecker & checker)
 {
-  if (_motion_model == MotionModel::DUBIN || _motion_model == MotionModel::REEDS_SHEPP)
-  {
+  if (_motion_model == MotionModel::DUBIN || _motion_model == MotionModel::REEDS_SHEPP) {
     std::vector<std::pair<NodePtr, Coordinates>> possible_nodes;
     const NodePtr & goal = getGoal();
-    ompl::base::ScopedState<> from(node->motion_table.state_space), to(node->motion_table.state_space), s(node->motion_table.state_space);
+    ompl::base::ScopedState<> from(node->motion_table.state_space), to(
+      node->motion_table.state_space), s(node->motion_table.state_space);
     const NodeSE2::Coordinates & node_coords = node->pose;
     const NodeSE2::Coordinates & goal_coords = goal->pose;
     from[0] = node_coords.x;
@@ -362,7 +364,7 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(const 
     // Don't generate the first point because we are already there!
     // And the last point is the goal, so ignore it too!
     for (unsigned int i = 1; i < num_pts; i++) {
-      node->motion_table.state_space->interpolate(from(), to(), (double)i/num_pts, s());
+      node->motion_table.state_space->interpolate(from(), to(), (double)i / num_pts, s());
       reals = s.reals();
       float angle = reals[2] / node->motion_table.bin_size;
       while (angle >= node->motion_table.num_angle_quantization_float) {
@@ -373,9 +375,9 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(const 
       }
       // Turn the pose into a node, and check if it is valid
       unsigned int index = NodeSE2::getIndex(
-          static_cast<unsigned int>(reals[0]),
-          static_cast<unsigned int>(reals[1]),
-          static_cast<unsigned int>(angle));
+        static_cast<unsigned int>(reals[0]),
+        static_cast<unsigned int>(reals[1]),
+        static_cast<unsigned int>(angle));
       // Get the node from the graph
       NodePtr next(nullptr);
       if (checker(index, next) && next->isNodeValid(_traverse_unknown, _collision_checker) && next != prev) {
@@ -408,13 +410,15 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(const 
   return NodePtr(nullptr);
 }
 
-  template<typename NodeT>
-typename AStarAlgorithm<NodeT>::NodePtr AStarAlgorithm<NodeT>::getAnalyticPath(const NodePtr & node, const ValidityChecker & checker)
+template<typename NodeT>
+typename AStarAlgorithm<NodeT>::NodePtr AStarAlgorithm<NodeT>::getAnalyticPath(
+  const NodePtr & node,
+  const ValidityChecker & checker)
 {
   return NodePtr(nullptr);
 }
 
-  template<>
+template<>
 bool AStarAlgorithm<Node2D>::backtracePath(NodePtr & node, CoordinateVector & path)
 {
   if (!node->parent) {
@@ -425,15 +429,15 @@ bool AStarAlgorithm<Node2D>::backtracePath(NodePtr & node, CoordinateVector & pa
 
   while (current_node->parent) {
     path.push_back(
-        Node2D::getCoords(
-          current_node->getIndex(), getSizeX(), getSizeDim3()));
+      Node2D::getCoords(
+        current_node->getIndex(), getSizeX(), getSizeDim3()));
     current_node = current_node->parent;
   }
 
   return path.size() > 1;
 }
 
-  template<>
+template<>
 bool AStarAlgorithm<NodeSE2>::backtracePath(NodePtr & node, CoordinateVector & path)
 {
   if (!node->parent) {
