@@ -361,12 +361,17 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
     constexpr float sqrt_2 = std::sqrt(2.);
     unsigned int num_pts = std::floor(d / sqrt_2) + 1;
     std::vector<double> reals;
+    // Pre-allocate
+    unsigned int index = 0;
+    NodePtr next(nullptr);
+    float angle = 0.0;
+    Coordinates proposed_coordinates;
     // Don't generate the first point because we are already there!
     // And the last point is the goal, so ignore it too!
     for (unsigned int i = 1; i < num_pts; i++) {
       node->motion_table.state_space->interpolate(from(), to(), (double)i / num_pts, s());
       reals = s.reals();
-      float angle = reals[2] / node->motion_table.bin_size;
+      angle = reals[2] / node->motion_table.bin_size;
       while (angle >= node->motion_table.num_angle_quantization_float) {
         angle -= node->motion_table.num_angle_quantization_float;
       }
@@ -374,19 +379,18 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
         angle += node->motion_table.num_angle_quantization_float;
       }
       // Turn the pose into a node, and check if it is valid
-      unsigned int index = NodeSE2::getIndex(
+      index = NodeSE2::getIndex(
         static_cast<unsigned int>(reals[0]),
         static_cast<unsigned int>(reals[1]),
         static_cast<unsigned int>(angle));
       // Get the node from the graph
-      NodePtr next(nullptr);
       if (checker(index, next)) {
         Coordinates initial_node_coords = next->pose;
-        next->setPose(Coordinates(reals[0], reals[1], angle));
+        proposed_coordinates = {static_cast<float>(reals[0]), static_cast<float>(reals[1]), angle};
+        next->setPose(proposed_coordinates);
         if (next->isNodeValid(_traverse_unknown, _collision_checker) && next != prev) {
           // Set coordinates
-          const Coordinates c(reals[0], reals[1], angle);
-          possible_nodes.emplace_back(next, c);
+          possible_nodes.emplace_back(next, proposed_coordinates);
           prev = next;
         } else {
           next->setPose(initial_node_coords);
