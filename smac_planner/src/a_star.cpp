@@ -245,6 +245,7 @@ bool AStarAlgorithm<NodeT>::createPath(
   int approach_iterations = 0;
   NeighborIterator neighbor_iterator;
   int analytic_iterations = 0;
+  int closest_distance = std::numeric_limits<int>::max();
 
   // Given an index, return a node ptr reference if its collision-free and valid
   const unsigned int max_index = getSizeX() * getSizeY() * getSizeDim3();
@@ -279,14 +280,23 @@ bool AStarAlgorithm<NodeT>::createPath(
     // Then check if it is collision free.
     // TODO(james-ward): Don't always run this check - base it on the
     // number of iterations and how close to the goal we are
-    analytic_iterations++;
-    if (analytic_iterations > _best_heuristic_node.first) {
+    // Always run the expansion on the first run in case there is a
+    // trivial path to be found
+    if (analytic_iterations <= 0) {
       NodePtr result = getAnalyticPath(current_node, neighborGetter);
       if (result != nullptr) {
         current_node = result;
       }
-      analytic_iterations = 0;
+      analytic_iterations = closest_distance;
     }
+    analytic_iterations--;
+    const Coordinates node_coords =
+      NodeT::getCoords(current_node->getIndex(), getSizeX(), getSizeDim3());
+    closest_distance =
+      std::min(
+      closest_distance,
+      static_cast<int>(NodeT::getHeuristicCost(node_coords, _goal_coordinates)));
+    analytic_iterations = std::min(analytic_iterations, closest_distance);
 
     // 3) Check if we're at the goal, backtrace if required
     if (isGoal(current_node)) {
