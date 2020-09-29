@@ -402,26 +402,33 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
       proposed_coordinates = {static_cast<float>(reals[0]), static_cast<float>(reals[1]), angle};
       next->setPose(proposed_coordinates);
       if (next->isNodeValid(_traverse_unknown, _collision_checker) && next != prev) {
-        // Set coordinates
-        possible_nodes.emplace_back(next, proposed_coordinates);
+        // Save the node, and its previous coordinates in case we need to abort
+        possible_nodes.emplace_back(next, initial_node_coords);
         prev = next;
       } else {
         next->setPose(initial_node_coords);
+        for (const auto & node_pose : possible_nodes) {
+          const auto & n = node_pose.first;
+          n->setPose(node_pose.second);
+        }
         return NodePtr(nullptr);
       }
     } else {
       // Abort
+      for (const auto & node_pose : possible_nodes) {
+        const auto & n = node_pose.first;
+        n->setPose(node_pose.second);
+      }
       return NodePtr(nullptr);
     }
   }
   if (num_pts > 2) {
-    // Legitimate path - set the parent relationships and poses
+    // Legitimate path - set the parent relationships - poses already set
     NodePtr prev = node;
     for (const auto & node_pose : possible_nodes) {
       const auto & n = node_pose.first;
       if (n != prev) {
         n->parent = prev;
-        n->setPose(node_pose.second);
       }
       prev = n;
     }
