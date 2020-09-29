@@ -278,7 +278,9 @@ bool AStarAlgorithm<NodeT>::createPath(
 
     // 2.a) Use an analytic expansion (if available) to generate a path
     // to the goal.
-    NodePtr result = tryAnalyticExpansion(current_node, neighborGetter, analytic_iterations, closest_distance);
+    NodePtr result = tryAnalyticExpansion(
+      current_node, neighborGetter, analytic_iterations,
+      closest_distance);
     if (result != nullptr) {
       current_node = result;
     }
@@ -596,7 +598,9 @@ unsigned int & AStarAlgorithm<NodeT>::getSizeDim3()
 }
 
 template<typename NodeT>
-typename AStarAlgorithm<NodeT>::NodePtr AStarAlgorithm<NodeT>::tryAnalyticExpansion(const NodePtr & current_node, const NodeGetter & getter, int & analytic_iterations, int & closest_distance)
+typename AStarAlgorithm<NodeT>::NodePtr AStarAlgorithm<NodeT>::tryAnalyticExpansion(
+  const NodePtr & current_node, const NodeGetter & getter, int & analytic_iterations,
+  int & closest_distance)
 {
   if (_motion_model == MotionModel::DUBIN || _motion_model == MotionModel::REEDS_SHEPP) {
     // This must be a NodeSE2 node if we are using these motion models
@@ -615,8 +619,8 @@ typename AStarAlgorithm<NodeT>::NodePtr AStarAlgorithm<NodeT>::tryAnalyticExpans
       NodeT::getCoords(current_node->getIndex(), getSizeX(), getSizeDim3());
     closest_distance =
       std::min(
-          closest_distance,
-          static_cast<int>(NodeT::getHeuristicCost(node_coords, _goal_coordinates)));
+      closest_distance,
+      static_cast<int>(NodeT::getHeuristicCost(node_coords, _goal_coordinates)));
     analytic_iterations = std::min(analytic_iterations, closest_distance);
   }
   // No valid motion model - return nullptr
