@@ -276,32 +276,13 @@ bool AStarAlgorithm<NodeT>::createPath(
     // 2) Mark Nbest as visited
     current_node->visited();
 
-    if (_motion_model == MotionModel::DUBIN || _motion_model == MotionModel::REEDS_SHEPP) {
-      // This must be a NodeSE2 node if we are using these motion models
-
-      // 2.a) Use an analytic expansion (if available) to generate a path
-      // to the goal.
-      // Then check if it is collision free.
-      // TODO(james-ward): Don't always run this check - base it on the
-      // number of iterations and how close to the goal we are
-      // Always run the expansion on the first run in case there is a
-      // trivial path to be found
-      if (analytic_iterations <= 0) {
-        NodePtr result = getAnalyticPath(current_node, neighborGetter);
-        if (result != nullptr) {
-          current_node = result;
-        }
-        analytic_iterations = closest_distance;
-      }
-      analytic_iterations--;
-      const Coordinates node_coords =
-        NodeT::getCoords(current_node->getIndex(), getSizeX(), getSizeDim3());
-      closest_distance =
-        std::min(
-        closest_distance,
-        static_cast<int>(NodeT::getHeuristicCost(node_coords, _goal_coordinates)));
-      analytic_iterations = std::min(analytic_iterations, closest_distance);
+    // 2.a) Use an analytic expansion (if available) to generate a path
+    // to the goal.
+    NodePtr result = tryAnalyticExpansion(current_node, neighborGetter, analytic_iterations, closest_distance);
+    if (result != nullptr) {
+      current_node = result;
     }
+
     // 3) Check if we're at the goal, backtrace if required
     if (isGoal(current_node)) {
       return backtracePath(current_node, path);
@@ -612,6 +593,34 @@ template<typename NodeT>
 unsigned int & AStarAlgorithm<NodeT>::getSizeDim3()
 {
   return _dim3_size;
+}
+
+template<typename NodeT>
+typename AStarAlgorithm<NodeT>::NodePtr AStarAlgorithm<NodeT>::tryAnalyticExpansion(const NodePtr & current_node, const NodeGetter & getter, int & analytic_iterations, int & closest_distance)
+{
+  if (_motion_model == MotionModel::DUBIN || _motion_model == MotionModel::REEDS_SHEPP) {
+    // This must be a NodeSE2 node if we are using these motion models
+
+    // Then check if it is collision free.
+    // Always run the expansion on the first run in case there is a
+    // trivial path to be found
+    if (analytic_iterations <= 0) {
+      // Reset the counter, and try the analytic path expansion
+      analytic_iterations = closest_distance;
+      return getAnalyticPath(current_node, getter);
+    }
+    analytic_iterations--;
+    // See if we are closer and should be expanding more often
+    const Coordinates node_coords =
+      NodeT::getCoords(current_node->getIndex(), getSizeX(), getSizeDim3());
+    closest_distance =
+      std::min(
+          closest_distance,
+          static_cast<int>(NodeT::getHeuristicCost(node_coords, _goal_coordinates)));
+    analytic_iterations = std::min(analytic_iterations, closest_distance);
+  }
+  // No valid motion model - return nullptr
+  return NodePtr(nullptr);
 }
 
 // Instantiate algorithm for the supported template types

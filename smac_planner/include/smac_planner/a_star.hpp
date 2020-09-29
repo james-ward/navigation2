@@ -276,6 +276,14 @@ private:
    */
   inline void clearGraph();
 
+  /**
+   * @brief Attempt an analytic path completion
+   * @return Node pointer reference to goal node if successful, else
+   * return nullptr
+   */
+  inline NodePtr tryAnalyticExpansion(const NodePtr & current_node,
+      const NodeGetter & getter, int & iterations, int & best_cost);
+
   bool _traverse_unknown;
   int _max_iterations;
   int _max_on_approach_iterations;
