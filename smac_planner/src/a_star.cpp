@@ -339,17 +339,15 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
   const NodeGetter & node_getter)
 {
   std::vector<std::pair<NodePtr, Coordinates>> possible_nodes;
-  const NodePtr & goal = getGoal();
   ompl::base::ScopedState<> from(node->motion_table.state_space), to(
     node->motion_table.state_space), s(node->motion_table.state_space);
   const NodeSE2::Coordinates & node_coords = node->pose;
-  const NodeSE2::Coordinates & goal_coords = goal->pose;
   from[0] = node_coords.x;
   from[1] = node_coords.y;
   from[2] = node_coords.theta * node->motion_table.bin_size;
-  to[0] = goal_coords.x;
-  to[1] = goal_coords.y;
-  to[2] = goal_coords.theta * node->motion_table.bin_size;
+  to[0] = _goal_coordinates.x;
+  to[1] = _goal_coordinates.y;
+  to[2] = _goal_coordinates.theta * node->motion_table.bin_size;
 
   float d = node->motion_table.state_space->distance(from(), to());
   NodePtr prev(node);
@@ -415,10 +413,10 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
       }
       prev = n;
     }
-    if (goal != prev) {
-      goal->parent = prev;
+    if (_goal != prev) {
+      _goal->parent = prev;
     }
-    return goal;
+    return _goal;
   }
   return NodePtr(nullptr);
 }
