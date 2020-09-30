@@ -612,7 +612,7 @@ typename AStarAlgorithm<NodeT>::NodePtr AStarAlgorithm<NodeT>::tryAnalyticExpans
     closest_distance =
       std::min(
       closest_distance,
-      static_cast<int>(NodeT::getHeuristicCost(node_coords, _goal_coordinates)));
+      static_cast<int>(NodeT::getHeuristicCost(node_coords, _goal_coordinates)/NodeSE2::neutral_cost));
     analytic_iterations = std::min(analytic_iterations, closest_distance);
   }
   // No valid motion model - return nullptr
