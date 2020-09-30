@@ -338,7 +338,6 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
   const NodePtr & node,
   const NodeGetter & node_getter)
 {
-  std::vector<std::pair<NodePtr, Coordinates>> possible_nodes;
   ompl::base::ScopedState<> from(node->motion_table.state_space), to(
     node->motion_table.state_space), s(node->motion_table.state_space);
   const NodeSE2::Coordinates & node_coords = node->pose;
@@ -353,7 +352,9 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
   NodePtr prev(node);
   // A move of sqrt(2) is guaranteed to be in a new cell
   constexpr float sqrt_2 = std::sqrt(2.);
-  unsigned int num_pts = std::floor(d / sqrt_2) + 1;
+  unsigned int num_intervals = std::floor(d / sqrt_2);
+  std::vector<std::pair<NodePtr, Coordinates>> possible_nodes;
+  possible_nodes.reserve(num_intervals - 1);  // We won't store this node or the goal
   std::vector<double> reals;
   // Pre-allocate
   unsigned int index = 0;
@@ -362,8 +363,8 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
   Coordinates proposed_coordinates;
   // Don't generate the first point because we are already there!
   // And the last point is the goal, so ignore it too!
-  for (unsigned int i = 1; i < num_pts; i++) {
-    node->motion_table.state_space->interpolate(from(), to(), (double)i / num_pts, s());
+  for (unsigned int i = 1; i < num_intervals; i++) {
+    node->motion_table.state_space->interpolate(from(), to(), (double)i / num_intervals, s());
     reals = s.reals();
     angle = reals[2] / node->motion_table.bin_size;
     while (angle >= node->motion_table.num_angle_quantization_float) {
@@ -403,22 +404,15 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
       return NodePtr(nullptr);
     }
   }
-  if (num_pts > 2) {
-    // Legitimate path - set the parent relationships - poses already set
-    NodePtr prev = node;
-    for (const auto & node_pose : possible_nodes) {
-      const auto & n = node_pose.first;
-      if (n != prev) {
-        n->parent = prev;
-      }
-      prev = n;
-    }
-    if (_goal != prev) {
-      _goal->parent = prev;
-    }
-    return _goal;
+  // Legitimate path - set the parent relationships - poses already set
+  prev = node;
+  for (const auto & node_pose : possible_nodes) {
+    const auto & n = node_pose.first;
+    n->parent = prev;
+    prev = n;
   }
-  return NodePtr(nullptr);
+  _goal->parent = prev;
+  return _goal;
 }
 
 template<typename NodeT>
