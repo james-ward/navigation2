@@ -15,6 +15,10 @@
 
 #include <omp.h>
 
+#include <ompl/base/ScopedState.h>
+#include <ompl/base/spaces/DubinsStateSpace.h>
+#include <ompl/base/spaces/ReedsSheppStateSpace.h>
+
 #include <cmath>
 #include <stdexcept>
 #include <memory>
@@ -25,10 +29,7 @@
 #include <thread>
 #include <unordered_set>
 #include <utility>
-
-#include <ompl/base/ScopedState.h>
-#include <ompl/base/spaces/DubinsStateSpace.h>
-#include <ompl/base/spaces/ReedsSheppStateSpace.h>
+#include <vector>
 
 #include "smac_planner/a_star.hpp"
 using namespace std::chrono;  // NOLINT
@@ -360,7 +361,7 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
   // The following code halves (roughly) the interval between
   // subsequent test points.
   // If we set the MSB of the number of intervals to zero, this halves
-  // it (approximately). We then leave the MSB alone and toggle the 2nd-MSB, and the third, and so on.
+  // it (approximately). We then leave the MSB and toggle the 2nd-MSB, and the third, and so on.
   // The mask of bits set to zero in the inteval count looks like:
   // 10000
   // 01000
@@ -413,8 +414,8 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
   Coordinates proposed_coordinates;
 
   // Test the nodes in our previously determined visit order
-  for (auto i : visit_order) {
-    node->motion_table.state_space->interpolate(from(), to(), (double)i / num_intervals, s());
+  for (float i : visit_order) {
+    node->motion_table.state_space->interpolate(from(), to(), i / num_intervals, s());
     reals = s.reals();
     angle = reals[2] / node->motion_table.bin_size;
     while (angle >= node->motion_table.num_angle_quantization_float) {
