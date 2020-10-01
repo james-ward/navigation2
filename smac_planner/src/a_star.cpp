@@ -373,27 +373,27 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
 
   // Reverse the bits of a number, up to the number of bits in the mask
   auto bit_reverse = [](unsigned int number, unsigned int mask) {
-    unsigned int output = 0;
-    while (mask > 0) {
-      output <<= 1;
-      output |= (number & 0x01);
-      number >>= 1;
-      mask >>= 1;
-    }
-    return output;
-  };
+      unsigned int output = 0;
+      while (mask > 0) {
+        output <<= 1;
+        output |= (number & 0x01);
+        number >>= 1;
+        mask >>= 1;
+      }
+      return output;
+    };
   // Find the next largest power of 2
   auto power_of_two_ceil = [](unsigned int x) {
-    if (x <= 1) return 1u;
-    unsigned int power = 2;
-    x--;
-    while (x >>= 1) power <<= 1;
-    return power;
-  };
+      if (x <= 1) {return 1u;}
+      unsigned int power = 2;
+      x--;
+      while (x >>= 1) {power <<= 1;}
+      return power;
+    };
 
   std::unordered_set<unsigned int> visit_order;
   unsigned int mask = power_of_two_ceil(num_intervals) - 1;
-  for (unsigned int i=0; i <= mask; i++) {
+  for (unsigned int i = 0; i <= mask; i++) {
     unsigned int v = mask & ~(bit_reverse(i, mask));
     // Don't generate the first point because we are already there!
     // And the last point is the goal, so ignore it too!
@@ -457,7 +457,10 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
   // Legitimate path - set the parent relationships - poses already set
   prev = node;
   // First sort our nodes from visit order into path index order
-  std::sort(possible_nodes.begin(), possible_nodes.end(), [](PossibleNode a, PossibleNode b) { return a.first < b.first; });
+  std::sort(
+    possible_nodes.begin(), possible_nodes.end(), [](PossibleNode a, PossibleNode b) {
+      return a.first < b.first;
+    });
   for (const auto & idx_node_pose : possible_nodes) {
     const auto & n = idx_node_pose.second.first;
     n->parent = prev;
@@ -664,8 +667,13 @@ typename AStarAlgorithm<NodeT>::NodePtr AStarAlgorithm<NodeT>::tryAnalyticExpans
     closest_distance =
       std::min(
       closest_distance,
-      static_cast<int>(NodeT::getHeuristicCost(node_coords, _goal_coordinates)/NodeSE2::neutral_cost));
-    analytic_iterations = std::min(analytic_iterations, static_cast<int>(closest_distance / _search_info.analytic_expansion_ratio));
+      static_cast<int>(NodeT::getHeuristicCost(
+        node_coords,
+        _goal_coordinates) / NodeSE2::neutral_cost));
+    analytic_iterations =
+      std::min(
+      analytic_iterations,
+      static_cast<int>(closest_distance / _search_info.analytic_expansion_ratio));
   }
   // No valid motion model - return nullptr
   return NodePtr(nullptr);
