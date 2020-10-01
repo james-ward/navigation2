@@ -669,7 +669,7 @@ typename AStarAlgorithm<NodeT>::NodePtr AStarAlgorithm<NodeT>::tryAnalyticExpans
       closest_distance,
       static_cast<int>(NodeT::getHeuristicCost(
         node_coords,
-        _goal_coordinates) / NodeSE2::neutral_cost));
+        _goal_coordinates) / NodeT::neutral_cost));
     analytic_iterations =
       std::min(
       analytic_iterations,
