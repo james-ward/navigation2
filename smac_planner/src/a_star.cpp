@@ -27,7 +27,6 @@
 #include <type_traits>
 #include <chrono>
 #include <thread>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -356,54 +355,7 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
   constexpr float sqrt_2 = std::sqrt(2.);
   unsigned int num_intervals = std::floor(d / sqrt_2);
 
-  // We want to test the nodes on the analytic path out of order.
-  // That way, we hope to find a collision earlier.
-  // The following code halves (roughly) the interval between
-  // subsequent test points.
-  // If we set the MSB of the number of intervals to zero, this halves
-  // it (approximately). We then leave the MSB and toggle the 2nd-MSB, and the third, and so on.
-  // The mask of bits set to zero in the inteval count looks like:
-  // 10000
-  // 01000
-  // 11000
-  // 00100
-  // etc
-  //
-  // This is the same as counting up from 1 and reversing the bit order.
-  // This is how we will create a mask to create an ordering for the nodes we visit.
-
-  // Reverse the bits of a number, up to the number of bits in the mask
-  auto bit_reverse = [](unsigned int number, unsigned int mask) {
-      unsigned int output = 0;
-      while (mask > 0) {
-        output <<= 1;
-        output |= (number & 0x01);
-        number >>= 1;
-        mask >>= 1;
-      }
-      return output;
-    };
-  // Find the next largest power of 2
-  auto power_of_two_ceil = [](unsigned int x) {
-      if (x <= 1) {return 1u;}
-      unsigned int power = 2;
-      x--;
-      while (x >>= 1) {power <<= 1;}
-      return power;
-    };
-
-  std::unordered_set<unsigned int> visit_order;
-  unsigned int mask = power_of_two_ceil(num_intervals) - 1;
-  for (unsigned int i = 0; i <= mask; i++) {
-    unsigned int v = mask & ~(bit_reverse(i, mask));
-    // Don't generate the first point because we are already there!
-    // And the last point is the goal, so ignore it too!
-    if (v < num_intervals && v != 0) {
-      visit_order.insert(v);
-    }
-  }
-
-  using PossibleNode = std::pair<unsigned int, std::pair<NodePtr, Coordinates>>;
+  using PossibleNode = std::pair<NodePtr, Coordinates>;
   std::vector<PossibleNode> possible_nodes;
   possible_nodes.reserve(num_intervals - 1);  // We won't store this node or the goal
   std::vector<double> reals;
@@ -412,9 +364,9 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
   NodePtr next(nullptr);
   float angle = 0.0;
   Coordinates proposed_coordinates;
-
-  // Test the nodes in our previously determined visit order
-  for (float i : visit_order) {
+  // Don't generate the first point because we are already there!
+  // And the last point is the goal, so ignore it too!
+  for (float i = 1; i < num_intervals; i++) {
     node->motion_table.state_space->interpolate(from(), to(), i / num_intervals, s());
     reals = s.reals();
     angle = reals[2] / node->motion_table.bin_size;
@@ -436,34 +388,29 @@ AStarAlgorithm<NodeSE2>::NodePtr AStarAlgorithm<NodeSE2>::getAnalyticPath(
       next->setPose(proposed_coordinates);
       if (next->isNodeValid(_traverse_unknown, _collision_checker) && next != prev) {
         // Save the node, and its previous coordinates in case we need to abort
-        possible_nodes.emplace_back(i, std::make_pair(next, initial_node_coords));
+        possible_nodes.emplace_back(next, initial_node_coords);
         prev = next;
       } else {
         next->setPose(initial_node_coords);
-        for (const auto & idx_node_pose : possible_nodes) {
-          const auto & n = idx_node_pose.second.first;
-          n->setPose(idx_node_pose.second.second);
+        for (const auto & node_pose : possible_nodes) {
+          const auto & n = node_pose.first;
+          n->setPose(node_pose.second);
         }
         return NodePtr(nullptr);
       }
     } else {
       // Abort
-      for (const auto & idx_node_pose : possible_nodes) {
-        const auto & n = idx_node_pose.second.first;
-        n->setPose(idx_node_pose.second.second);
+      for (const auto & node_pose : possible_nodes) {
+        const auto & n = node_pose.first;
+        n->setPose(node_pose.second);
       }
       return NodePtr(nullptr);
     }
   }
   // Legitimate path - set the parent relationships - poses already set
   prev = node;
-  // First sort our nodes from visit order into path index order
-  std::sort(
-    possible_nodes.begin(), possible_nodes.end(), [](PossibleNode a, PossibleNode b) {
-      return a.first < b.first;
-    });
-  for (const auto & idx_node_pose : possible_nodes) {
-    const auto & n = idx_node_pose.second.first;
+  for (const auto & node_pose : possible_nodes) {
+    const auto & n = node_pose.first;
     n->parent = prev;
     prev = n;
   }
