@@ -29,7 +29,6 @@ using namespace std::chrono;  // NOLINT
 SmacPlanner2D::SmacPlanner2D()
 : _a_star(nullptr),
   _smoother(nullptr),
-  _upsampler(nullptr),
   _costmap(nullptr),
   _costmap_downsampler(nullptr),
   _node(nullptr)
@@ -57,7 +56,7 @@ void SmacPlanner2D::configure(
   int max_iterations;
   int max_on_approach_iterations;
   bool smooth_path;
-  bool upsample_path;
+  double minimum_turning_radius;
   std::string motion_model_for_search;
 
   // General planner params
@@ -81,14 +80,11 @@ void SmacPlanner2D::configure(
     _node, name + ".max_on_approach_iterations", rclcpp::ParameterValue(1000));
   _node->get_parameter(name + ".max_on_approach_iterations", max_on_approach_iterations);
   nav2_util::declare_parameter_if_not_declared(
-    _node, name + ".smooth_path", rclcpp::ParameterValue(true));
+    _node, name + ".smooth_path", rclcpp::ParameterValue(false));
   _node->get_parameter(name + ".smooth_path", smooth_path);
   nav2_util::declare_parameter_if_not_declared(
-    _node, name + ".upsample_path", rclcpp::ParameterValue(false));
-  _node->get_parameter(name + ".upsample_path", upsample_path);
-  nav2_util::declare_parameter_if_not_declared(
-    _node, name + ".smoother.upsampling_ratio", rclcpp::ParameterValue(2));
-  _node->get_parameter(name + ".smoother.upsampling_ratio", _upsampling_ratio);
+    _node, name + ".minimum_turning_radius", rclcpp::ParameterValue(0.2));
+  _node->get_parameter(name + ".minimum_turning_radius", minimum_turning_radius);
 
   nav2_util::declare_parameter_if_not_declared(
     _node, name + ".max_planning_time_ms", rclcpp::ParameterValue(1000.0));
@@ -120,13 +116,6 @@ void SmacPlanner2D::configure(
     max_iterations = std::numeric_limits<int>::max();
   }
 
-  if (_upsampling_ratio != 2 && _upsampling_ratio != 4) {
-    RCLCPP_WARN(
-      _node->get_logger(),
-      "Upsample ratio set to %i, only 2 and 4 are valid. Defaulting to 2.", _upsampling_ratio);
-    _upsampling_ratio = 2;
-  }
-
   _a_star = std::make_unique<AStarAlgorithm<Node2D>>(motion_model, SearchInfo());
   _a_star->initialize(
     allow_unknown,
@@ -137,12 +126,8 @@ void SmacPlanner2D::configure(
     _smoother = std::make_unique<Smoother>();
     _optimizer_params.get(_node.get(), name);
     _smoother_params.get(_node.get(), name);
+    _smoother_params.max_curvature = 1.0f / minimum_turning_radius;
     _smoother->initialize(_optimizer_params);
-
-    if (upsample_path && _upsampling_ratio > 0) {
-      _upsampler = std::make_unique<Upsampler>();
-      _upsampler->initialize(_optimizer_params);
-    }
   }
 
   if (_downsample_costmap && _downsampling_factor > 1) {
@@ -152,7 +137,6 @@ void SmacPlanner2D::configure(
   }
 
   _raw_plan_publisher = _node->create_publisher<nav_msgs::msg::Path>("unsmoothed_plan", 1);
-  _smoothed_plan_publisher = _node->create_publisher<nav_msgs::msg::Path>("smoothed_plan", 1);
 
   RCLCPP_INFO(
     _node->get_logger(), "Configured plugin %s of type SmacPlanner2D with "
@@ -169,7 +153,6 @@ void SmacPlanner2D::activate()
     _node->get_logger(), "Activating plugin %s of type SmacPlanner2D",
     _name.c_str());
   _raw_plan_publisher->on_activate();
-  _smoothed_plan_publisher->on_activate();
   if (_costmap_downsampler) {
     _costmap_downsampler->activatePublisher();
   }
@@ -181,7 +164,6 @@ void SmacPlanner2D::deactivate()
     _node->get_logger(), "Deactivating plugin %s of type SmacPlanner2D",
     _name.c_str());
   _raw_plan_publisher->on_deactivate();
-  _smoothed_plan_publisher->on_deactivate();
   if (_costmap_downsampler) {
     _costmap_downsampler->deactivatePublisher();
   }
@@ -194,10 +176,8 @@ void SmacPlanner2D::cleanup()
     _name.c_str());
   _a_star.reset();
   _smoother.reset();
-  _upsampler.reset();
   _costmap_downsampler.reset();
   _raw_plan_publisher.reset();
-  _smoothed_plan_publisher.reset();
 }
 
 nav_msgs::msg::Path SmacPlanner2D::createPlan(
@@ -208,7 +188,7 @@ nav_msgs::msg::Path SmacPlanner2D::createPlan(
 
   std::unique_lock<nav2_costmap_2d::Costmap2D::mutex_t> lock(*(_costmap->getMutex()));
 
-  // Choose which costmap to use for the planning
+  // Downsample costmap, if required
   nav2_costmap_2d::Costmap2D * costmap = _costmap;
   if (_costmap_downsampler) {
     costmap = _costmap_downsampler->downsample(_downsampling_factor);
@@ -292,7 +272,8 @@ nav_msgs::msg::Path SmacPlanner2D::createPlan(
     _raw_plan_publisher->publish(plan);
   }
 
-  if (!_smoother) {
+  // If not smoothing or too short to smooth, return path
+  if (!_smoother || path_world.size() < 4) {
 #ifdef BENCHMARK_TESTING
     steady_clock::time_point b = steady_clock::now();
     duration<double> time_span = duration_cast<duration<double>>(b - a);
@@ -302,12 +283,7 @@ nav_msgs::msg::Path SmacPlanner2D::createPlan(
     return plan;
   }
 
-  // if too small, return path
-  if (path_world.size() < 4) {
-    return plan;
-  }
-
-  // Find how much time we have left to do upsampling
+  // Find how much time we have left to do smoothing
   steady_clock::time_point b = steady_clock::now();
   duration<double> time_span = duration_cast<duration<double>>(b - a);
   double time_remaining = _max_planning_time - static_cast<double>(time_span.count());
@@ -324,35 +300,8 @@ nav_msgs::msg::Path SmacPlanner2D::createPlan(
 
   removeHook(path_world);
 
-  // Publish smoothed path for debug
-  if (_node->count_subscribers(_smoothed_plan_publisher->get_topic_name()) > 0) {
-    for (uint i = 0; i != path_world.size(); i++) {
-      pose.pose.position.x = path_world[i][0];
-      pose.pose.position.y = path_world[i][1];
-      plan.poses[i] = pose;
-    }
-    _smoothed_plan_publisher->publish(plan);
-  }
-
-  // Find how much time we have left to do upsampling
-  b = steady_clock::now();
-  time_span = duration_cast<duration<double>>(b - a);
-  time_remaining = _max_planning_time - static_cast<double>(time_span.count());
-  _smoother_params.max_time = std::min(time_remaining, _optimizer_params.max_time);
-
-  // Upsample path
-  if (_upsampler) {
-    if (!_upsampler->upsample(path_world, _smoother_params, _upsampling_ratio)) {
-      RCLCPP_WARN(
-        _node->get_logger(),
-        "%s: failed to upsample plan, Ceres could not find a usable solution to optimize.",
-        _name.c_str());
-    } else {
-      plan.poses.resize(path_world.size());
-    }
-  }
-
-  for (uint i = 0; i != plan.poses.size(); i++) {
+  // populate final path
+  for (uint i = 0; i != path_world.size(); i++) {
     pose.pose.position.x = path_world[i][0];
     pose.pose.position.y = path_world[i][1];
     plan.poses[i] = pose;

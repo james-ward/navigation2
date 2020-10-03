@@ -33,12 +33,13 @@
 //  - plots of pts that violate over iterations (curve, dist > thresh, smooth > dist, cost > thresh)
 // - Need to boil down statements about why I did this, clear benefits, and drawbacks of current approaches / solutions  // NOLINT
 //  - Identified 3 math errors of Thrun
-//  - show and explain derivations on smoother / upsampler. Show and explain hybrid stuff
+//  - show and explain derivations on smoother. Show and explain hybrid stuff
 // Lets look at what we ahve here:
 //   We have A* path smoothed to kinematic paramrters. Even without explicit modelling of ackermann or limited curvature kinematics, you can get it here. In fact, while a little hand wavey, if you plan in a full potential field with default settings, it steers intentionally in the center of spaces. If that space is built for a robot or vehicle (eg road, or aisle, or open space, or office) then you’re pseduo-promised that the curvature can be valid for your vehicle. Now the then the boundry conditions (initial and final state) are not. For alot of cases thats sufficient bc of an intelligent local planner based on dubin curves or something, but if not, we have a full hybrid A* as well.  // NOLINT
 //   Ex of robot to limit curvature: industrial for max speed without dumping load, ackermann, legged to prop forward to minimize slow down for off acis motion, diff to not whip around  // NOLINT
 //  Show path, no map -- Show term smoothing, lovely, no map -- Then map, welp, thats useless
-
+// - we very carefully tuned and designed the penalties to be cost aware so smoothing isn't strictly necessary  // NOLINT
+// PUBLISH??!?!?! this means no smoothing required instead in optimization
 // astar timeout, max duration, optimizer gets rest or until its set maximum. Test time before/after A* but not in it, that would slow down. if over, send log warning like DWB  // NOLINT
 
 // if collision in smoothed path, anchor that point and then re-run until successful (helpful in narrow spaces).  // NOLINT
@@ -48,8 +49,6 @@
 // People are used to these smooth paths from Navigation Function approaches and I'm not sure anyone would be  // NOLINT
 // happy if I just gave them a A* without it. Its stil quite fast but its much faster than NavFn without the smoother.  // NOLINT
 // If you have a half decent controller though, its largely unneeded (I tested, its fine, its just not visually appealing).  // NOLINT
-
-// seperate createPlan into a few functions
 
 #include <string>
 #include <memory>
@@ -70,7 +69,6 @@ using namespace std::chrono;  // NOLINT
 SmacPlanner::SmacPlanner()
 : _a_star(nullptr),
   _smoother(nullptr),
-  _upsampler(nullptr),
   _node(nullptr),
   _costmap(nullptr),
   _costmap_downsampler(nullptr)
@@ -100,7 +98,6 @@ void SmacPlanner::configure(
   int angle_quantizations;
   SearchInfo search_info;
   bool smooth_path;
-  bool upsample_path;
   std::string motion_model_for_search;
 
   // General planner params
@@ -127,17 +124,11 @@ void SmacPlanner::configure(
     _node, name + ".max_iterations", rclcpp::ParameterValue(-1));
   _node->get_parameter(name + ".max_iterations", max_iterations);
   nav2_util::declare_parameter_if_not_declared(
-    _node, name + ".smooth_path", rclcpp::ParameterValue(true));
+    _node, name + ".smooth_path", rclcpp::ParameterValue(false));
   _node->get_parameter(name + ".smooth_path", smooth_path);
-  nav2_util::declare_parameter_if_not_declared(
-    _node, name + ".upsample_path", rclcpp::ParameterValue(false));
-  _node->get_parameter(name + ".upsample_path", upsample_path);
-  nav2_util::declare_parameter_if_not_declared(
-    _node, name + ".smoother.upsampling_ratio", rclcpp::ParameterValue(2));
-  _node->get_parameter(name + ".smoother.upsampling_ratio", _upsampling_ratio);
 
   nav2_util::declare_parameter_if_not_declared(
-    _node, name + ".minimum_turning_radius", rclcpp::ParameterValue(1.0));
+    _node, name + ".minimum_turning_radius", rclcpp::ParameterValue(0.2));
   _node->get_parameter(name + ".minimum_turning_radius", search_info.minimum_turning_radius);
 
   nav2_util::declare_parameter_if_not_declared(
@@ -183,14 +174,8 @@ void SmacPlanner::configure(
     max_iterations = std::numeric_limits<int>::max();
   }
 
-  if (_upsampling_ratio != 2 && _upsampling_ratio != 4) {
-    RCLCPP_WARN(
-      _node->get_logger(),
-      "Upsample ratio set to %i, only 2 and 4 are valid. Defaulting to 2.", _upsampling_ratio);
-    _upsampling_ratio = 2;
-  }
-
   // convert to grid coordinates
+  const double minimum_turning_radius_global_coords = search_info.minimum_turning_radius;
   search_info.minimum_turning_radius =
     search_info.minimum_turning_radius / (_costmap->getResolution() * _downsampling_factor);
 
@@ -205,12 +190,8 @@ void SmacPlanner::configure(
     _smoother = std::make_unique<Smoother>();
     _optimizer_params.get(_node.get(), name);
     _smoother_params.get(_node.get(), name);
+    _smoother_params.max_curvature = 1.0f / minimum_turning_radius_global_coords;
     _smoother->initialize(_optimizer_params);
-
-    if (upsample_path && _upsampling_ratio > 0) {
-      _upsampler = std::make_unique<Upsampler>();
-      _upsampler->initialize(_optimizer_params);
-    }
   }
 
   if (_downsample_costmap && _downsampling_factor > 1) {
@@ -220,7 +201,6 @@ void SmacPlanner::configure(
   }
 
   _raw_plan_publisher = _node->create_publisher<nav_msgs::msg::Path>("unsmoothed_plan", 1);
-  _smoothed_plan_publisher = _node->create_publisher<nav_msgs::msg::Path>("smoothed_plan", 1);
 
   RCLCPP_INFO(
     _node->get_logger(), "Configured plugin %s of type SmacPlanner with "
@@ -237,7 +217,6 @@ void SmacPlanner::activate()
     _node->get_logger(), "Activating plugin %s of type SmacPlanner",
     _name.c_str());
   _raw_plan_publisher->on_activate();
-  _smoothed_plan_publisher->on_activate();
   if (_costmap_downsampler) {
     _costmap_downsampler->activatePublisher();
   }
@@ -249,7 +228,6 @@ void SmacPlanner::deactivate()
     _node->get_logger(), "Deactivating plugin %s of type SmacPlanner",
     _name.c_str());
   _raw_plan_publisher->on_deactivate();
-  _smoothed_plan_publisher->on_deactivate();
   if (_costmap_downsampler) {
     _costmap_downsampler->deactivatePublisher();
   }
@@ -262,10 +240,8 @@ void SmacPlanner::cleanup()
     _name.c_str());
   _a_star.reset();
   _smoother.reset();
-  _upsampler.reset();
   _costmap_downsampler.reset();
   _raw_plan_publisher.reset();
-  _smoothed_plan_publisher.reset();
 }
 
 nav_msgs::msg::Path SmacPlanner::createPlan(
@@ -276,7 +252,7 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
 
   std::unique_lock<nav2_costmap_2d::Costmap2D::mutex_t> lock(*(_costmap->getMutex()));
 
-  // Choose which costmap to use for the planning
+  // Downsample costmap, if required
   nav2_costmap_2d::Costmap2D * costmap = _costmap;
   if (_costmap_downsampler) {
     costmap = _costmap_downsampler->downsample(_downsampling_factor);
@@ -351,15 +327,10 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
   // We're going to downsample by 4x to give terms room to move.
   const int downsample_ratio = 4;
   std::vector<Eigen::Vector2d> path_world;
-  path_world.reserve(_smoother ? path.size() / downsample_ratio : path.size());
-  plan.poses.reserve(_smoother ? path.size() / downsample_ratio : path.size());
+  path_world.reserve(path.size());
+  plan.poses.reserve(path.size());
 
   for (int i = path.size() - 1; i >= 0; --i) {
-    // TODO(stevemacenski): probably isn't necessary
-    if (_smoother && i % downsample_ratio != 0) {
-      continue;
-    }
-
     path_world.push_back(getWorldCoords(path[i].x, path[i].y, costmap));
     pose.pose.position.x = path_world.back().x();
     pose.pose.position.y = path_world.back().y();
@@ -372,7 +343,8 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
     _raw_plan_publisher->publish(plan);
   }
 
-  if (!_smoother) {
+  // If not smoothing or too short to smooth, return path
+  if (!_smoother || path_world.size() < 4) {
 #ifdef BENCHMARK_TESTING
     steady_clock::time_point b = steady_clock::now();
     duration<double> time_span = duration_cast<duration<double>>(b - a);
@@ -382,12 +354,7 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
     return plan;
   }
 
-  // if too small, return path
-  if (path_world.size() < 4) {
-    return plan;
-  }
-
-  // Find how much time we have left to do upsampling
+  // Find how much time we have left to do smoothing
   steady_clock::time_point b = steady_clock::now();
   duration<double> time_span = duration_cast<duration<double>>(b - a);
   double time_remaining = _max_planning_time - static_cast<double>(time_span.count());
@@ -404,40 +371,12 @@ nav_msgs::msg::Path SmacPlanner::createPlan(
 
   removeHook(path_world);
 
-  // Publish smoothed path for debug
-  if (_node->count_subscribers(_smoothed_plan_publisher->get_topic_name()) > 0) {
-    for (uint i = 0; i != path_world.size(); i++) {
-      pose.pose.position.x = path_world[i][0];
-      pose.pose.position.y = path_world[i][1];
-      plan.poses[i] = pose;
-      // TODO(stevemacenski): Add orientation from tangent of path
-    }
-    _smoothed_plan_publisher->publish(plan);
-  }
-
-  // Find how much time we have left to do upsampling
-  b = steady_clock::now();
-  time_span = duration_cast<duration<double>>(b - a);
-  time_remaining = _max_planning_time - static_cast<double>(time_span.count());
-  _smoother_params.max_time = std::min(time_remaining, _optimizer_params.max_time);
-
-  // Upsample path
-  if (_upsampler) {
-    if (!_upsampler->upsample(path_world, _smoother_params, _upsampling_ratio)) {
-      RCLCPP_WARN(
-        _node->get_logger(),
-        "%s: failed to upsample plan, Ceres could not find a usable solution to optimize.",
-        _name.c_str());
-    } else {
-      plan.poses.resize(path_world.size());
-    }
-  }
-
-  for (uint i = 0; i != plan.poses.size(); i++) {
+  // populate final path
+  // TODO(stevemacenski): set orientation to tangent of path
+  for (uint i = 0; i != path_world.size(); i++) {
     pose.pose.position.x = path_world[i][0];
     pose.pose.position.y = path_world[i][1];
     plan.poses[i] = pose;
-    // TODO(stevemacenski): Add orientation from tangent of path
   }
 
   return plan;
