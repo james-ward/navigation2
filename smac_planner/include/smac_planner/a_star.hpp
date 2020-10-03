@@ -51,7 +51,6 @@ inline double squaredDistance(
 template<typename NodeT>
 class AStarAlgorithm
 {
-
 public:
   typedef NodeT * NodePtr;
   typedef std::unordered_map<unsigned int, NodeT> Graph;
