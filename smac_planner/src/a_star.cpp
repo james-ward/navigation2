@@ -605,7 +605,9 @@ typename AStarAlgorithm<NodeT>::NodePtr AStarAlgorithm<NodeT>::tryAnalyticExpans
     // trivial path to be found
     if (analytic_iterations <= 0) {
       // Reset the counter, and try the analytic path expansion
-      analytic_iterations = closest_distance;
+      // The smallest we will reset it to is 2 - this stops it running
+      // every iteration when very close to the goal
+      analytic_iterations = std::max(2, closest_distance);
       return getAnalyticPath(current_node, getter);
     }
     analytic_iterations--;
