@@ -150,6 +150,13 @@ public:
    * @param use_radius Whether this footprint is a circle with radius
    */
   void setFootprint(nav2_costmap_2d::Footprint footprint, bool use_radius);
+
+  /**
+   * @brief Perform an analytic path expansion to the goal
+   * @param node The node to start the analytic path from
+   * @param getter The function object that gets valid nodes from the graph
+   * @return Node pointer to goal node if successful, else return nullptr
+   */
   NodePtr getAnalyticPath(const NodePtr & node, const NodeGetter & getter);
 
   /**
