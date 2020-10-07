@@ -600,17 +600,6 @@ typename AStarAlgorithm<NodeT>::NodePtr AStarAlgorithm<NodeT>::tryAnalyticExpans
   if (_motion_model == MotionModel::DUBIN || _motion_model == MotionModel::REEDS_SHEPP) {
     // This must be a NodeSE2 node if we are using these motion models
 
-    // Then check if it is collision free.
-    // Always run the expansion on the first run in case there is a
-    // trivial path to be found
-    if (analytic_iterations <= 0) {
-      // Reset the counter, and try the analytic path expansion
-      // The smallest we will reset it to is 2 - this stops it running
-      // every iteration when very close to the goal
-      analytic_iterations = std::max(2, closest_distance);
-      return getAnalyticPath(current_node, getter);
-    }
-    analytic_iterations--;
     // See if we are closer and should be expanding more often
     const Coordinates node_coords =
       NodeT::getCoords(current_node->getIndex(), getSizeX(), getSizeDim3());
@@ -619,11 +608,27 @@ typename AStarAlgorithm<NodeT>::NodePtr AStarAlgorithm<NodeT>::tryAnalyticExpans
       closest_distance,
       static_cast<int>(NodeT::getHeuristicCost(
         node_coords,
-        _goal_coordinates) / NodeT::neutral_cost));
+        _goal_coordinates) / NodeT::neutral_cost)
+      );
+    // We want to expand at a rate of d/expansion_ratio,
+    // but check to see if we are so close that we would be expanding every iteration
+    // If so, limit it to the expansion ratio (rounded up)
+    int desired_iterations = std::max(
+      static_cast<int>(closest_distance / _search_info.analytic_expansion_ratio),
+      static_cast<int>(std::ceil(_search_info.analytic_expansion_ratio))
+    );
+    // If we are closer now, we should update the target number of iterations to go
     analytic_iterations =
-      std::min(
-      analytic_iterations,
-      static_cast<int>(closest_distance / _search_info.analytic_expansion_ratio));
+      std::min(analytic_iterations, desired_iterations);
+
+    // Always run the expansion on the first run in case there is a
+    // trivial path to be found
+    if (analytic_iterations <= 0) {
+      // Reset the counter, and try the analytic path expansion
+      analytic_iterations = desired_iterations;
+      return getAnalyticPath(current_node, getter);
+    }
+    analytic_iterations--;
   }
   // No valid motion model - return nullptr
   return NodePtr(nullptr);
