@@ -322,23 +322,42 @@ geometry_msgs::msg::PoseStamped RegulatedPurePursuitController::getLookAheadPoin
   // If the no pose is not far enough, take the last pose
   if (goal_pose_it == transformed_plan.poses.end()) {
     goal_pose_it = std::prev(transformed_plan.poses.end());
-  } else if (params_->use_interpolation && goal_pose_it != transformed_plan.poses.begin()) {
+  }
+  if (params_->use_interpolation && goal_pose_it != transformed_plan.poses.begin()) {
+    // We have more than one pose in the plan, so we can interpolate
+    auto goal_position = goal_pose_it->pose.position;
+    auto prev_pose_it = std::prev(goal_pose_it);
+    auto prev_position = prev_pose_it->pose.position;
+
+    if (goal_pose_it == std::prev(transformed_plan.poses.end())) {
+      // This means that the last pose is inside the lookahead distance
+      // Project forward based on the vector between the last two poses
+      // to create the carrot beyond the end of the plan
+      // This will ensure that the minimum lookahead distance constraint is preserved
+      // and that the gain of the steering isn't effectively increased near the goal
+      auto dx = goal_position.x - prev_position.x;
+      auto dy = goal_position.y - prev_position.y;
+
+      auto d = std::hypot(dx, dy);
+      // Projecting past the last point by the lookahead distance ensures that the point
+      // is at least the lookahead distance away
+      // (maybe more, but we will interpolate in the next step)
+      goal_position.x += dx / d * lookahead_dist;
+      goal_position.y += dy / d * lookahead_dist;
+    }
     // Find the point on the line segment between the two poses
     // that is exactly the lookahead distance away from the robot pose (the origin)
     // This can be found with a closed form for the intersection of a segment and a circle
     // Because of the way we did the std::find_if, prev_pose is guaranteed to be inside the circle,
     // and goal_pose is guaranteed to be outside the circle.
-    auto prev_pose_it = std::prev(goal_pose_it);
-    auto point = circleSegmentIntersection(
-      prev_pose_it->pose.position,
-      goal_pose_it->pose.position, lookahead_dist);
+    auto point = circleSegmentIntersection(prev_position, goal_position, lookahead_dist);
     geometry_msgs::msg::PoseStamped pose;
     pose.header.frame_id = prev_pose_it->header.frame_id;
     pose.header.stamp = goal_pose_it->header.stamp;
     pose.pose.position = point;
     return pose;
   }
-
+  // We are not interpolating - return the actual path pose
   return *goal_pose_it;
 }
 
