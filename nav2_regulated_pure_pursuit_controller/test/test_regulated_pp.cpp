@@ -403,6 +403,11 @@ TEST(RegulatedPurePursuitTest, lookaheadAPI)
   dist = 3.8;
   pt = ctrl->getLookAheadPointWrapper(dist, path);
   EXPECT_EQ(pt.pose.position.x, 3.8);
+
+  // test carrot projected off end of path with interpolation
+  dist = 100.0;
+  pt = ctrl->getLookAheadPointWrapper(dist, path);
+  EXPECT_EQ(pt.pose.position.x, 100.0);
 }
 
 TEST(RegulatedPurePursuitTest, rotateTests)
