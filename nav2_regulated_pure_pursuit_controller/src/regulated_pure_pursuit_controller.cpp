@@ -17,6 +17,7 @@
 #include <string>
 #include <limits>
 #include <memory>
+#include <tf2/LinearMath/Quaternion.h>
 #include <vector>
 #include <utility>
 
@@ -331,19 +332,20 @@ geometry_msgs::msg::PoseStamped RegulatedPurePursuitController::getLookAheadPoin
 
     if (goal_pose_it == std::prev(transformed_plan.poses.end())) {
       // This means that the last pose is inside the lookahead distance
-      // Project forward based on the vector between the last two poses
+      // Project forward based on the orientation of the goal pose
       // to create the carrot beyond the end of the plan
       // This will ensure that the minimum lookahead distance constraint is preserved
       // and that the gain of the steering isn't effectively increased near the goal
-      auto dx = goal_position.x - prev_position.x;
-      auto dy = goal_position.y - prev_position.y;
-
-      auto d = std::hypot(dx, dy);
+      tf2::Quaternion q(goal_pose_it->pose.orientation.x, goal_pose_it->pose.orientation.y,
+                        goal_pose_it->pose.orientation.z, goal_pose_it->pose.orientation.w);
+      tf2::Matrix3x3 m(q);
+      double r,p,yaw;
+      m.getRPY(r,p,yaw);
       // Projecting past the last point by the lookahead distance ensures that the point
       // is at least the lookahead distance away
       // (maybe more, but we will interpolate in the next step)
-      goal_position.x += dx / d * lookahead_dist;
-      goal_position.y += dy / d * lookahead_dist;
+      goal_position.x += std::cos(yaw) * lookahead_dist;
+      goal_position.y += std::sin(yaw) * lookahead_dist;
     }
     // Find the point on the line segment between the two poses
     // that is exactly the lookahead distance away from the robot pose (the origin)
