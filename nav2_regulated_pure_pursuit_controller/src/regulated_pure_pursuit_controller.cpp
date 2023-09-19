@@ -461,12 +461,12 @@ void RegulatedPurePursuitController::setPlan(const nav_msgs::msg::Path & path)
 }
 
 geometry_msgs::msg::Point RegulatedPurePursuitController::retractPose(
-  const geometry_msgs::msg::Point & from,
+  const geometry_msgs::msg::Point & origin,
   const geometry_msgs::msg::Point & towards)
 {
-  auto retracted = from;
-  auto dx = from.x - towards.x;
-  auto dy = from.y - towards.y;
+  auto retracted = origin;
+  auto dx = origin.x - towards.x;
+  auto dy = origin.y - towards.y;
   auto d = std::hypot(dx, dy);
   // Retract the point a tiny amount -> 0.001 will mean the points are
   // indistiguishable to the progress checking/pruning algorithm
