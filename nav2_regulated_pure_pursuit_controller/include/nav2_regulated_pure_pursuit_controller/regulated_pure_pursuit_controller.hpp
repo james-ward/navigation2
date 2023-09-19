@@ -196,6 +196,10 @@ protected:
    */
   double findVelocitySignChange(const nav_msgs::msg::Path & transformed_plan);
 
+  unsigned int getIndexOfNextCusp(
+    const nav_msgs::msg::Path & transformed_plan,
+    const unsigned int start_index);
+
   geometry_msgs::msg::Point retractPose(
     const geometry_msgs::msg::Point & from,
     const geometry_msgs::msg::Point & towards);
