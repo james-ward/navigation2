@@ -321,7 +321,11 @@ geometry_msgs::msg::PoseStamped RegulatedPurePursuitController::getLookAheadPoin
 
   // If the no pose is not far enough, take the last pose
   if (goal_pose_it == transformed_plan.poses.end()) {
-    goal_pose_it = std::prev(transformed_plan.poses.end());
+    if (params_->project_carrot_past_goal) {
+      return projectCarrotPastGoal(lookahead_dist, transformed_plan);
+    } else {
+      goal_pose_it = std::prev(transformed_plan.poses.end());
+    }
   } else if (params_->use_interpolation && goal_pose_it != transformed_plan.poses.begin()) {
     // Find the point on the line segment between the two poses
     // that is exactly the lookahead distance away from the robot pose (the origin)
@@ -340,6 +344,46 @@ geometry_msgs::msg::PoseStamped RegulatedPurePursuitController::getLookAheadPoin
   }
 
   return *goal_pose_it;
+}
+
+geometry_msgs::msg::PoseStamped
+RegulatedPurePursuitController::projectCarrotPastGoal(
+  const double & lookahead_dist, const nav_msgs::msg::Path & transformed_plan)
+{
+  if (transformed_plan.poses.size() == 1) {
+    // We cannot recover the direction of the last segment
+    // Put the lookahead point directly in front of the robot so that we don't
+    // turn
+    auto goal_pose = transformed_plan.poses.back();
+    geometry_msgs::msg::PoseStamped pose;
+    pose.header.frame_id = goal_pose.header.frame_id;
+    pose.header.stamp = goal_pose.header.stamp;
+    pose.pose.position.x =
+      goal_pose.pose.position.x > 0.0 ? lookahead_dist : -lookahead_dist;
+    pose.pose.position.y = 0.0;
+    return pose;
+  }
+
+  // Calculate the direction of the last segment
+  const auto goal_pose = transformed_plan.poses.end()[-1];
+  const auto prev_pose = transformed_plan.poses.end()[-2];
+  const auto dx = goal_pose.pose.position.x - prev_pose.pose.position.x;
+  const auto dy = goal_pose.pose.position.y - prev_pose.pose.position.y;
+  const auto d = std::hypot(dx, dy);
+
+  // Create a carrot the lookahead distance from the goal pose
+  auto pose = goal_pose;
+  pose.pose.position.x += dx / d * lookahead_dist;
+  pose.pose.position.y += dy / d * lookahead_dist;
+
+  if (params_->use_interpolation) {
+    // Interpolation is on - find the point the correct distance away on our new
+    // segment
+    auto point = circleSegmentIntersection(
+      prev_pose.pose.position, goal_pose.pose.position, lookahead_dist);
+    pose.pose.position = point;
+  }
+  return pose;
 }
 
 void RegulatedPurePursuitController::applyConstraints(
@@ -375,7 +419,71 @@ void RegulatedPurePursuitController::applyConstraints(
 
 void RegulatedPurePursuitController::setPlan(const nav_msgs::msg::Path & path)
 {
-  path_handler_->setPlan(path);
+  if (params_->project_carrot_past_goal && path.poses.size() >= 2) {
+    // Insert an additional goal pose extremely close to the goal pose so that
+    // the returned plan has at least two poses to allow projection of the
+    // carrot past the goal pose if requested
+
+    nav_msgs::msg::Path augmented_plan{};
+    augmented_plan.header = path.header;
+
+    // We also want to do this at cusp points
+    // Iterating through the path to determine the position of the cusp
+    for (unsigned int pose_id = 1; pose_id < path.poses.size() - 1; ++pose_id) {
+      // We have two vectors for the dot product OA and AB. Determining the
+      // vectors.
+      const auto prev_pos = path.poses[pose_id - 1].pose.position;
+      const auto this_pose_stamped = path.poses[pose_id];
+      const auto this_pos = this_pose_stamped.pose.position;
+      const auto next_pos = path.poses[pose_id + 1].pose.position;
+      double oa_x = this_pos.x - prev_pos.x;
+      double oa_y = this_pos.y - prev_pos.y;
+      double ab_x = next_pos.x - this_pos.x;
+      double ab_y = next_pos.y - this_pos.y;
+
+      /* Checking for the existance of cusp, in the path, using the dot product
+  and determine it's distance from the robot. If there is no cusp in the path,
+  then just determine the distance to the goal location. */
+      if ((oa_x * ab_x) + (oa_y * ab_y) < 0.0) {
+        // Add an additional pose before the one at pose_id <- this is the cusp
+        auto retracted_pos = retractPose(this_pos, prev_pos);
+        auto retracted_pose_stamped = this_pose_stamped;
+        retracted_pose_stamped.pose.position = retracted_pos;
+        augmented_plan.poses.push_back(retracted_pose_stamped);
+      }
+      augmented_plan.poses.push_back(this_pose_stamped);
+    }
+    // Do the same for the last pose in the path
+    auto last_pose_stamped = path.poses.end()[-1];
+    auto second_last_pose_stamped = path.poses.end()[-2];
+    auto retracted_pose_stamped = last_pose_stamped;
+
+    retracted_pose_stamped.pose.position =
+      retractPose(
+      last_pose_stamped.pose.position,
+      second_last_pose_stamped.pose.position);
+    augmented_plan.poses.push_back(retracted_pose_stamped);
+    augmented_plan.poses.push_back(path.poses.back());
+    path_handler_->setPlan(augmented_plan);
+  } else {
+    path_handler_->setPlan(path);
+  }
+}
+
+geometry_msgs::msg::Point RegulatedPurePursuitController::retractPose(
+  const geometry_msgs::msg::Point & from,
+  const geometry_msgs::msg::Point & towards)
+{
+  auto retracted = from;
+  auto dx = from.x - towards.x;
+  auto dy = from.y - towards.y;
+  auto d = std::hypot(dx, dy);
+  // Retract the point a tiny amount -> 0.001 will mean the points are
+  // indistiguishable to the progress checking/pruning algorithm
+  retracted.x -= 0.001 * dx / d;
+  retracted.y -= 0.001 * dy / d;
+
+  return retracted;
 }
 
 void RegulatedPurePursuitController::setSpeedLimit(

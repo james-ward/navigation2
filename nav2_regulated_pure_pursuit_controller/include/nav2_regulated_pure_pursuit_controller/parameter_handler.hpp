@@ -37,6 +37,7 @@ struct Parameters
   double rotate_to_heading_angular_vel;
   double max_lookahead_dist;
   double min_lookahead_dist;
+  bool project_carrot_past_goal;
   double lookahead_time;
   bool use_velocity_scaled_lookahead_dist;
   double min_approach_linear_velocity;

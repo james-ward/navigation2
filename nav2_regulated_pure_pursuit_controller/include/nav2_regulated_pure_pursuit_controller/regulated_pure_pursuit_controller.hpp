@@ -196,6 +196,14 @@ protected:
    */
   double findVelocitySignChange(const nav_msgs::msg::Path & transformed_plan);
 
+  geometry_msgs::msg::Point retractPose(
+    const geometry_msgs::msg::Point & from,
+    const geometry_msgs::msg::Point & towards);
+
+  geometry_msgs::msg::PoseStamped projectCarrotPastGoal(
+    const double & lookahead_dist,
+    const nav_msgs::msg::Path & transformed_plan);
+
   rclcpp_lifecycle::LifecycleNode::WeakPtr node_;
   std::shared_ptr<tf2_ros::Buffer> tf_;
   std::string plugin_name_;
