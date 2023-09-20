@@ -425,11 +425,11 @@ void RegulatedPurePursuitController::setPlan(const nav_msgs::msg::Path & path)
     // carrot past the goal pose if requested
     // We also want to do this at cusp points
 
-    nav_msgs::msg::Path augmented_plan{};
+    nav_msgs::msg::Path augmented_plan;
     augmented_plan.header = path.header;
 
     auto cusp_idx = getIndexOfNextCusp(path, 1);
-    unsigned int last_copied = 0;
+    unsigned int last_cusp = 0;
     while (true) {
       // Loop until the cusp function returns the index to the goal pose
       // This might happen on the first loop and we want to make sure we copy
@@ -437,20 +437,21 @@ void RegulatedPurePursuitController::setPlan(const nav_msgs::msg::Path & path)
 
       // Copy from the last copied pose up to the cusp
       std::copy(
-        path.poses.begin() + last_copied,
-        path.poses.begin() + cusp_idx, augmented_plan.poses.end());
+        path.poses.begin() + last_cusp,
+        path.poses.begin() + cusp_idx, std::back_inserter(augmented_plan.poses));
       const auto cusp_pose_stamped = path.poses[cusp_idx];
       const auto prev_pose_stamped = path.poses[cusp_idx - 1];
       const auto retracted_pos = retractPose(
         cusp_pose_stamped.pose.position,
         prev_pose_stamped.pose.position);
-      auto retracted_pose_stamped = cusp_pose_stamped;
+      auto retracted_pose_stamped {cusp_pose_stamped};
       retracted_pose_stamped.pose.position = retracted_pos;
       augmented_plan.poses.push_back(retracted_pose_stamped);
-      last_copied = cusp_idx;
+      last_cusp = cusp_idx;
       if (cusp_idx == path.poses.size() - 1) {
         break;
       }
+      cusp_idx = getIndexOfNextCusp(path, last_cusp + 1);
     }
     // Add the goal pose at the end
     augmented_plan.poses.push_back(path.poses.back());
@@ -500,16 +501,20 @@ unsigned int RegulatedPurePursuitController::getIndexOfNextCusp(
   const nav_msgs::msg::Path & transformed_plan,
   const unsigned int start_index)
 {
-  for (unsigned int pose_id = start_index; pose_id < transformed_plan.poses.size() - 1; ++pose_id) {
+  // Make sure we don't start earlier than the end of the first segment!
+  for (unsigned int pose_id =
+    std::max(start_index, 1u); pose_id < transformed_plan.poses.size() - 1;
+    ++pose_id)
+  {
     // We have two vectors for the dot product OA and AB. Determining the vectors.
-    double oa_x = transformed_plan.poses[pose_id].pose.position.x -
-      transformed_plan.poses[pose_id - 1].pose.position.x;
-    double oa_y = transformed_plan.poses[pose_id].pose.position.y -
-      transformed_plan.poses[pose_id - 1].pose.position.y;
-    double ab_x = transformed_plan.poses[pose_id + 1].pose.position.x -
-      transformed_plan.poses[pose_id].pose.position.x;
-    double ab_y = transformed_plan.poses[pose_id + 1].pose.position.y -
-      transformed_plan.poses[pose_id].pose.position.y;
+    const auto prev_pos = transformed_plan.poses[pose_id - 1].pose.position;
+    const auto this_pos = transformed_plan.poses[pose_id].pose.position;
+    const auto next_pos = transformed_plan.poses[pose_id + 1].pose.position;
+
+    double oa_x = this_pos.x - prev_pos.x;
+    double oa_y = this_pos.y - prev_pos.y;
+    double ab_x = next_pos.x - this_pos.x;
+    double ab_y = next_pos.y - this_pos.y;
 
     /* Checking for the existance of cusp, in the path, using the dot product
     and determine it's distance from the robot. If there is no cusp in the path,
@@ -522,6 +527,7 @@ unsigned int RegulatedPurePursuitController::getIndexOfNextCusp(
   }
 
   // Return the index of the last point if no cusps found
+  RCLCPP_INFO(logger_, "No cusp");
   return transformed_plan.poses.size() - 1;
 }
 
