@@ -114,6 +114,13 @@ public:
     return findVelocitySignChange(transformed_plan);
   }
 
+  geometry_msgs::msg::Point retractPointWrapper(
+    const geometry_msgs::msg::Point & origin,
+    const geometry_msgs::msg::Point & towards)
+  {
+    return retractPoint(origin, towards);
+  }
+
   nav_msgs::msg::Path transformGlobalPlanWrapper(
     const geometry_msgs::msg::PoseStamped & pose)
   {
@@ -287,6 +294,16 @@ TEST(RegulatedPurePursuitTest, augmentPlanWhenProjectingPastGoal)
   rclcpp_lifecycle::State state;
   costmap->on_configure(state);
   ctrl->configure(node, name, tf, costmap);
+
+  // Check retraction in the correct direction
+  geometry_msgs::msg::Point origin;
+  geometry_msgs::msg::Point towards;
+  origin.x = 1.0;
+  origin.y = 1.0;
+  auto retracted = ctrl->retractPointWrapper(origin, towards);
+  EXPECT_NEAR(retracted.x, 0.999, 5e-4);
+  EXPECT_NEAR(retracted.y, 0.999, 5e-4);
+
 
   geometry_msgs::msg::PoseStamped pose;
   pose.header.frame_id = "smb";

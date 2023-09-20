@@ -441,7 +441,7 @@ void RegulatedPurePursuitController::setPlan(const nav_msgs::msg::Path & path)
         path.poses.begin() + cusp_idx, std::back_inserter(augmented_plan.poses));
       const auto cusp_pose_stamped = path.poses[cusp_idx];
       const auto prev_pose_stamped = path.poses[cusp_idx - 1];
-      const auto retracted_pos = retractPose(
+      const auto retracted_pos = retractPoint(
         cusp_pose_stamped.pose.position,
         prev_pose_stamped.pose.position);
       auto retracted_pose_stamped {cusp_pose_stamped};
@@ -461,7 +461,7 @@ void RegulatedPurePursuitController::setPlan(const nav_msgs::msg::Path & path)
   }
 }
 
-geometry_msgs::msg::Point RegulatedPurePursuitController::retractPose(
+geometry_msgs::msg::Point RegulatedPurePursuitController::retractPoint(
   const geometry_msgs::msg::Point & origin,
   const geometry_msgs::msg::Point & towards)
 {
@@ -527,7 +527,6 @@ unsigned int RegulatedPurePursuitController::getIndexOfNextCusp(
   }
 
   // Return the index of the last point if no cusps found
-  RCLCPP_INFO(logger_, "No cusp");
   return transformed_plan.poses.size() - 1;
 }
 

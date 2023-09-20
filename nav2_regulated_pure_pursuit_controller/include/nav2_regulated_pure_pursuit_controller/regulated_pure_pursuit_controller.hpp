@@ -212,7 +212,7 @@ protected:
    * @param towards Position of the target to retract towards
    * @return position of the retracted point
    */
-  geometry_msgs::msg::Point retractPose(
+  geometry_msgs::msg::Point retractPoint(
     const geometry_msgs::msg::Point & origin,
     const geometry_msgs::msg::Point & towards);
 
