@@ -158,7 +158,7 @@ LifecycleManager::isActiveCallback(
 void
 LifecycleManager::CreateDiagnostic(diagnostic_updater::DiagnosticStatusWrapper & stat)
 {
-  unsigned char error_level;
+  unsigned char error_level = 0;
   std::string message;
   switch (managed_nodes_state_) {
     case NodeState::ACTIVE:
