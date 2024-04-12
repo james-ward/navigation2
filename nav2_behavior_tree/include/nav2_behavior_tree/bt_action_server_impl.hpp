@@ -144,7 +144,7 @@ bool BtActionServer<ActionT>::on_configure()
   rclcpp::copy_all_parameter_values(node, client_node_);
 
   // set the timeout in seconds for the action server to discard goal handles if not finished
-  double action_server_result_timeout;
+  double action_server_result_timeout {};
   node->get_parameter("action_server_result_timeout", action_server_result_timeout);
   rcl_action_server_options_t server_options = rcl_action_server_get_default_options();
   server_options.result_timeout.nanoseconds = RCL_S_TO_NS(action_server_result_timeout);
@@ -158,7 +158,7 @@ bool BtActionServer<ActionT>::on_configure()
     nullptr, std::chrono::milliseconds(500), false, server_options);
 
   // Get parameters for BT timeouts
-  int bt_loop_duration;
+  int bt_loop_duration {};
   node->get_parameter("bt_loop_duration", bt_loop_duration);
   bt_loop_duration_ = std::chrono::milliseconds(bt_loop_duration);
   int default_server_timeout;
