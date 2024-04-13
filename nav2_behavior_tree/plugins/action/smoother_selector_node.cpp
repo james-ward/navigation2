@@ -85,7 +85,11 @@ SmootherSelector::callbackSmootherSelect(const std_msgs::msg::String::SharedPtr 
 
 }  // namespace nav2_behavior_tree
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 #include "behaviortree_cpp/bt_factory.h"
+#pragma GCC diagnostic pop
+
 BT_REGISTER_NODES(factory)
 {
   factory.registerNodeType<nav2_behavior_tree::SmootherSelector>("SmootherSelector");

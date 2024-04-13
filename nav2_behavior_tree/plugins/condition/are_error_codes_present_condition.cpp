@@ -14,7 +14,11 @@
 
 #include "nav2_behavior_tree/plugins/condition/are_error_codes_present_condition.hpp"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 #include "behaviortree_cpp/bt_factory.h"
+#pragma GCC diagnostic pop
+
 BT_REGISTER_NODES(factory)
 {
   factory.registerNodeType<nav2_behavior_tree::AreErrorCodesPresent>(

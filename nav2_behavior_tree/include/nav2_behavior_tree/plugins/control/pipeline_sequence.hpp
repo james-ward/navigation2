@@ -17,7 +17,11 @@
 
 #include <string>
 #include "behaviortree_cpp/control_node.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 #include "behaviortree_cpp/bt_factory.h"
+#pragma GCC diagnostic pop
+
 
 namespace nav2_behavior_tree
 {

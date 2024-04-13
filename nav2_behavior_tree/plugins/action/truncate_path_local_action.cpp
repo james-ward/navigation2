@@ -150,7 +150,11 @@ TruncatePathLocal::poseDistance(
 
 }  // namespace nav2_behavior_tree
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 #include "behaviortree_cpp/bt_factory.h"
+#pragma GCC diagnostic pop
+
 BT_REGISTER_NODES(factory) {
   factory.registerNodeType<nav2_behavior_tree::TruncatePathLocal>(
     "TruncatePathLocal");

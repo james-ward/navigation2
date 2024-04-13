@@ -20,7 +20,13 @@
 #include <deque>
 
 #include "rclcpp/rclcpp.hpp"
+
+// behaviortree-cpp creates a warning that needs to be ignored as we are building with -Werror
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 #include "behaviortree_cpp/condition_node.h"
+#pragma GCC diagnostic pop
+
 #include "nav_msgs/msg/odometry.hpp"
 
 namespace nav2_behavior_tree

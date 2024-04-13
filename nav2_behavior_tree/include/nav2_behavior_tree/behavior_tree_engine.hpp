@@ -20,7 +20,12 @@
 #include <string>
 #include <vector>
 
+// behaviortree-cpp creates a warning that needs to be ignored as we are building with -Werror
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 #include "behaviortree_cpp/behavior_tree.h"
+#pragma GCC diagnostic pop
+
 #include "behaviortree_cpp/bt_factory.h"
 #include "behaviortree_cpp/xml_parsing.h"
 

@@ -16,7 +16,12 @@
 #define NAV2_BEHAVIOR_TREE__PLUGINS__CONDITION__INITIAL_POSE_RECEIVED_CONDITION_HPP_
 
 #include <string>
+
+// behaviortree-cpp creates a warning that needs to be ignored as we are building with -Werror
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 #include "behaviortree_cpp/behavior_tree.h"
+#pragma GCC diagnostic pop
 
 namespace nav2_behavior_tree
 {
